@@ -45,6 +45,14 @@ const nextConfig = {
       },
     ];
   },
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${process.env.API_PROXY_URL || 'https://scalpex-api.onrender.com'}/api/:path*`,
+      },
+    ];
+  },
 }
 
 module.exports = nextConfig

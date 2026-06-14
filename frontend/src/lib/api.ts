@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://scalpex-api.onrender.com';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
 class ApiClient {
   private baseUrl: string;
