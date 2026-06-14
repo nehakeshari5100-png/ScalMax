@@ -35,7 +35,6 @@ class ApiClient {
     if (response.status === 401) {
       if (typeof window !== 'undefined' && !endpoint.includes('/auth/')) {
         document.cookie = 'scalpex_token=; path=/; max-age=0';
-        window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
       }
       throw new Error('Authentication required');
     }
