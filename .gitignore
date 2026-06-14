@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+
+# Env files — contains API keys and secrets
+.env
+*.env
+!*.env.example
+
+# Node
+node_modules/
+.next/
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Reports
+reports/
+
+# SQLite databases (migrating to Supabase)
+*.db
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Generated MD reports
+AUDIT_REPORT.md
+PRODUCTION_READINESS_REPORT.md
+SECURITY_REPORT.md
+
+# Data files (migrating to Supabase)
+calibration.json
+backtest_results.db
+papertrading.db
+
+# Coverage
+htmlcov/
+.coverage
