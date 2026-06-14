@@ -18,7 +18,7 @@ const securityHeaders = [
   },
   {
     key: 'Content-Security-Policy',
-    value: "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://openrouter.ai https://api.binance.com https://api.bybit.com https://api.hyperliquid.xyz wss://stream.binance.com:9443 wss://stream.bybit.com wss://api.hyperliquid.xyz; font-src 'self' data:;",
+    value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://openrouter.ai https://api.binance.com https://api.bybit.com https://api.hyperliquid.xyz https://scalpex-api.onrender.com wss://stream.binance.com:9443 wss://stream.bybit.com wss://api.hyperliquid.xyz; font-src 'self' data:;",
   },
   {
     key: 'Referrer-Policy',
