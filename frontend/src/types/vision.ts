@@ -1,3 +1,10 @@
+export interface LiquidityDetails {
+  equalHighs: boolean
+  equalLows: boolean
+  liquiditySweeps: boolean
+  stopHunts: boolean
+}
+
 export interface ScoringDetail {
   marketStructure: number
   liquidity: number
@@ -10,6 +17,16 @@ export interface ScoringDetail {
   overall: number
 }
 
+export interface RiskAssessment {
+  accountSize: number
+  riskPercent: number
+  riskAmount: number
+  positionSize: number
+  maxLoss: number
+  expectedProfit: number
+  riskRewardRatio: string
+}
+
 export interface ScoredTrade {
   signal: string
   confidence: number
@@ -20,6 +37,10 @@ export interface ScoredTrade {
   take_profit_1: string
   take_profit_2: string
   risk_reward: string
+  marketStructureSummary: string
+  liquiditySummary: string
+  riskSummary: string
+  riskAssessment: RiskAssessment
   scoring: ScoringDetail
 }
 
@@ -30,6 +51,8 @@ export interface VisionObservation {
   momentum: string
   liquidity: string
   volume: string
+  confluence: string
+  liquidityDetails: LiquidityDetails
   confidence: number
   entry_zone: string
   invalidation: string
@@ -58,5 +81,4 @@ export interface VisionModelsResponse {
   models: VisionModel[]
 }
 
-// Legacy — kept for backward compat
 export type ChartAnalysisResult = ScoredTrade

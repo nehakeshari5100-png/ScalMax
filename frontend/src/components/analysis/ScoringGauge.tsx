@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { GlassCard } from '@/components/ui/GlassCard';
-import { BarChart3, Eye, TrendingUp, Zap, Brain, Shield } from 'lucide-react';
+import { BarChart3, Eye, TrendingUp, Zap, Shield } from 'lucide-react';
 import type { ScoringDetail } from '@/types/vision';
 
 interface ScoringGaugeProps {
@@ -14,10 +14,9 @@ interface ScoringGaugeProps {
 const CATEGORIES = [
   { key: 'marketStructure' as const, label: 'Market Structure', weight: '30%', icon: BarChart3 },
   { key: 'liquidity' as const, label: 'Liquidity', weight: '25%', icon: Eye },
-  { key: 'trend' as const, label: 'Trend', weight: '15%', icon: TrendingUp },
-  { key: 'momentum' as const, label: 'Momentum', weight: '10%', icon: Zap },
-  { key: 'volume' as const, label: 'Volume', weight: '10%', icon: Shield },
-  { key: 'confluence' as const, label: 'Confluence', weight: '10%', icon: Brain },
+  { key: 'trend' as const, label: 'Trend', weight: '20%', icon: TrendingUp },
+  { key: 'momentum' as const, label: 'Momentum', weight: '15%', icon: Zap },
+  { key: 'confluence' as const, label: 'Confluence', weight: '10%', icon: Shield },
 ];
 
 function scoreColor(score: number): string {
@@ -32,8 +31,8 @@ export function ScoringGauge({ scoring, className }: ScoringGaugeProps) {
   return (
     <GlassCard className={cn('p-5', className)}>
       <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/5">
-        <Brain className="w-4 h-4 text-cyber-400" />
-        <h3 className="text-sm font-semibold">Master Scalping Score</h3>
+        <BarChart3 className="w-4 h-4 text-cyber-400" />
+        <h3 className="text-sm font-semibold">Scoring Breakdown</h3>
       </div>
       <div className="space-y-3">
         {CATEGORIES.map(({ key, label, weight, icon: Icon }) => {

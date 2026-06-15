@@ -1,5 +1,3 @@
-"""Vision Analysis Engine — sends chart images to OpenRouter and extracts structured observations."""
-
 import base64
 import hashlib
 import json
@@ -14,6 +12,7 @@ from services.vision.models import (
     VisionObservation,
     OBSERVATION_PROMPT,
     VisionAnalysisResponse,
+    LiquidityDetails,
 )
 
 OPENROUTER_BASE = "https://openrouter.ai/api/v1"
@@ -21,7 +20,6 @@ _cache: dict[str, VisionAnalysisResponse] = {}
 
 
 def _optimize_image(image_data: bytes, max_width: int = 800, quality: int = 55) -> bytes:
-    """Resize to max_width, convert to JPEG quality, strip metadata."""
     img = Image.open(BytesIO(image_data))
     if img.width > max_width:
         ratio = max_width / img.width
@@ -38,9 +36,50 @@ def _cache_key(image_data: bytes, model: str) -> str:
     return hashlib.md5(image_data + model.encode()).hexdigest()
 
 
-class VisionAnalyzer:
-    """Sends chart images to OpenRouter vision models and extracts observations."""
+def _fallback_observation() -> VisionObservation:
+    return VisionObservation(
+        quality="READABLE",
+        trend="neutral",
+        marketStructure="ranging",
+        momentum="moderate",
+        liquidity="none",
+        volume="medium",
+        confluence="none",
+        liquidityDetails=LiquidityDetails(),
+        confidence=0,
+        entry_zone="",
+        invalidation="",
+        target_1="",
+        target_2="",
+    )
 
+
+def _fill_missing(parsed: dict) -> dict:
+    defaults = {
+        "quality": "READABLE",
+        "trend": "neutral",
+        "marketStructure": "ranging",
+        "momentum": "moderate",
+        "liquidity": "none",
+        "volume": "medium",
+        "confluence": "none",
+        "confidence": 0,
+        "entry_zone": "",
+        "invalidation": "",
+        "target_1": "",
+        "target_2": "",
+    }
+    if "liquidityDetails" not in parsed or not isinstance(parsed["liquidityDetails"], dict):
+        parsed["liquidityDetails"] = {}
+    ld_defaults = {"equalHighs": False, "equalLows": False, "liquiditySweeps": False, "stopHunts": False}
+    for k, v in ld_defaults.items():
+        parsed["liquidityDetails"].setdefault(k, v)
+    for k, v in defaults.items():
+        parsed.setdefault(k, v)
+    return parsed
+
+
+class VisionAnalyzer:
     @staticmethod
     async def analyze(
         api_key: str,
@@ -48,8 +87,14 @@ class VisionAnalyzer:
         model: str = "openrouter/free",
         prompt: str = "",
     ) -> VisionAnalysisResponse:
-        """Analyze a chart image and return structured observations."""
-        optimized = _optimize_image(image_data)
+        try:
+            optimized = _optimize_image(image_data)
+        except Exception:
+            return VisionAnalysisResponse(
+                success=False,
+                error="CHART_QUALITY_TOO_LOW: Image could not be processed",
+                model=model,
+            )
         image_b64 = base64.b64encode(optimized).decode("utf-8")
         image_url = f"data:image/jpeg;base64,{image_b64}"
 
@@ -65,7 +110,7 @@ class VisionAnalyzer:
             {
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": "Extract observations from this chart. Return only JSON."},
+                    {"type": "text", "text": "Analyze this chart and return only the JSON."},
                     {"type": "image_url", "image_url": {"url": image_url}},
                 ],
             },
@@ -74,13 +119,13 @@ class VisionAnalyzer:
         request_body = {
             "model": model,
             "messages": messages,
-            "temperature": 0.2,
-            "top_p": 0.8,
-            "max_tokens": 150,
+            "temperature": 0.1,
+            "top_p": 0.9,
+            "max_tokens": 800,
         }
 
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            async with httpx.AsyncClient(timeout=90.0) as client:
                 response = await client.post(
                     f"{OPENROUTER_BASE}/chat/completions",
                     headers={
@@ -92,7 +137,6 @@ class VisionAnalyzer:
                 )
 
                 if response.status_code == 402:
-                    # Auto-retry with free router if not already using it
                     if model != "openrouter/free":
                         free_result = await VisionAnalyzer.analyze(
                             api_key=api_key,
@@ -118,7 +162,7 @@ class VisionAnalyzer:
                         pass
                     result = VisionAnalysisResponse(
                         success=False,
-                        error=f"OpenRouter API error ({response.status_code}): {error_detail}",
+                        error=f"ANALYSIS_UNAVAILABLE: OpenRouter API error ({response.status_code}): {error_detail}",
                         model=model,
                     )
                     _cache[ck] = result
@@ -129,7 +173,7 @@ class VisionAnalyzer:
                 if not choices:
                     result = VisionAnalysisResponse(
                         success=False,
-                        error="No choices in OpenRouter response",
+                        error="ANALYSIS_UNAVAILABLE: No choices in model response",
                         raw=json.dumps(result_data),
                         model=model,
                     )
@@ -140,7 +184,7 @@ class VisionAnalyzer:
                 if not content:
                     result = VisionAnalysisResponse(
                         success=False,
-                        error="Empty response from model",
+                        error="ANALYSIS_UNAVAILABLE: Empty response from model",
                         raw=json.dumps(result_data),
                         model=model,
                     )
@@ -151,14 +195,29 @@ class VisionAnalyzer:
                 if parsed is None:
                     result = VisionAnalysisResponse(
                         success=False,
-                        error="Failed to parse JSON from model response",
+                        error="ANALYSIS_UNAVAILABLE: Failed to parse JSON from model response",
                         raw=content,
                         model=model,
                     )
                     _cache[ck] = result
                     return result
 
-                observation = VisionObservation(**parsed)
+                parsed = _fill_missing(parsed)
+
+                if parsed.get("quality") == "UNREADABLE_CHART":
+                    result = VisionAnalysisResponse(
+                        success=False,
+                        error="CHART_QUALITY_TOO_LOW: Chart image is not readable. Please upload a clearer screenshot.",
+                        model=model,
+                    )
+                    _cache[ck] = result
+                    return result
+
+                try:
+                    observation = VisionObservation(**parsed)
+                except Exception:
+                    observation = _fallback_observation()
+
                 result = VisionAnalysisResponse(
                     success=True,
                     observation=observation,
@@ -171,7 +230,7 @@ class VisionAnalyzer:
         except httpx.TimeoutException:
             result = VisionAnalysisResponse(
                 success=False,
-                error="Request timed out after 60 seconds",
+                error="ANALYSIS_UNAVAILABLE: Request timed out after 90 seconds",
                 model=model,
             )
             _cache[ck] = result
@@ -179,7 +238,7 @@ class VisionAnalyzer:
         except Exception as e:
             result = VisionAnalysisResponse(
                 success=False,
-                error=f"Analysis failed: {str(e)}",
+                error=f"ANALYSIS_UNAVAILABLE: {str(e)}",
                 model=model,
             )
             _cache[ck] = result

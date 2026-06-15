@@ -7,7 +7,7 @@ import { ScoringGauge } from './ScoringGauge';
 import { TradePlanPanel } from './TradePlanPanel';
 import {
   TrendingUp, TrendingDown, Minus, Shield, Brain, Target,
-  Zap, AlertTriangle, BarChart3, Eye, Activity, DollarSign,
+  Zap, AlertTriangle, BarChart3, Eye, Activity, DollarSign, Info,
 } from 'lucide-react';
 import type { ScoredTrade, VisionObservation } from '@/types/vision';
 
@@ -43,13 +43,21 @@ export function AnalysisResult({ trade, observation, model }: AnalysisResultProp
   const isNoTrade = trade.signal === 'NEUTRAL' && trade.confidence === 0;
   const VerdictIcon = signal.icon;
 
-  const confidenceColor = trade.confidence >= 80 ? 'bg-aurora-400' : trade.confidence >= 50 ? 'bg-ember-400' : 'bg-red-400';
+  const confidenceColor = trade.confidence >= 85 ? 'bg-aurora-400' : trade.confidence >= 70 ? 'bg-cyber-400' : trade.confidence >= 50 ? 'bg-ember-400' : 'bg-red-400';
 
   const obsTagColor = (v: string, bullish: string) => {
     if (v === bullish) return 'green';
     if (v === 'neutral' || v === 'none' || v === 'medium' || v === 'moderate' || v === 'ranging') return 'amber';
     return 'red';
   };
+
+  const ld = observation.liquidityDetails;
+  const liqIndicators = [
+    ld?.equalHighs && 'Equal Highs',
+    ld?.equalLows && 'Equal Lows',
+    ld?.liquiditySweeps && 'Sweep',
+    ld?.stopHunts && 'Stop Hunt',
+  ].filter(Boolean);
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
@@ -61,7 +69,6 @@ export function AnalysisResult({ trade, observation, model }: AnalysisResultProp
         </div>
       </div>
 
-      {/* Verdict */}
       <GlassCard className={cn('p-6 border', signal.border)}>
         <div className="flex items-center gap-4">
           <div className={cn('w-14 h-14 rounded-2xl flex items-center justify-center', signal.bg)}>
@@ -86,6 +93,14 @@ export function AnalysisResult({ trade, observation, model }: AnalysisResultProp
             <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Engine Confidence</p>
           </div>
         </div>
+
+        {/* Risk Summary */}
+        {trade.riskSummary && (
+          <div className="mt-4 pt-3 border-t border-white/5 flex items-start gap-2">
+            <Info className="w-3.5 h-3.5 text-cyber-400 mt-0.5 shrink-0" />
+            <p className="text-[11px] text-[var(--color-text-muted)]">{trade.riskSummary}</p>
+          </div>
+        )}
       </GlassCard>
 
       {/* Observations */}
@@ -116,10 +131,45 @@ export function AnalysisResult({ trade, observation, model }: AnalysisResultProp
             <Tag color={obsTagColor(observation.volume, 'high')}>{observation.volume}</Tag>
           </div>
           <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-[var(--color-text-muted)]">Confluence</span>
+            <Tag color={obsTagColor(observation.confluence || 'none', 'support')}>{observation.confluence || 'none'}</Tag>
+          </div>
+          <div className="flex items-center gap-1.5">
             <span className="text-[10px] text-[var(--color-text-muted)]">AI Confidence</span>
             <Tag>{`${observation.confidence}%`}</Tag>
           </div>
         </div>
+
+        {/* Liquidity Details */}
+        {liqIndicators.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {liqIndicators.map((indicator) => (
+              <Tag key={indicator} color="blue">{indicator}</Tag>
+            ))}
+          </div>
+        )}
+
+        {/* Market Structure Summary */}
+        {trade.marketStructureSummary && (
+          <div className="mt-3 pt-3 border-t border-white/5">
+            <div className="flex items-center gap-1.5 mb-1">
+              <BarChart3 className="w-3 h-3 text-cyber-400" />
+              <span className="text-[10px] font-medium text-[var(--color-text-muted)]">Market Structure</span>
+            </div>
+            <p className="text-[11px] text-[var(--color-text-muted)]">{trade.marketStructureSummary}</p>
+          </div>
+        )}
+
+        {/* Liquidity Summary */}
+        {trade.liquiditySummary && (
+          <div className="mt-2">
+            <div className="flex items-center gap-1.5 mb-1">
+              <Eye className="w-3 h-3 text-cyber-400" />
+              <span className="text-[10px] font-medium text-[var(--color-text-muted)]">Liquidity</span>
+            </div>
+            <p className="text-[11px] text-[var(--color-text-muted)]">{trade.liquiditySummary}</p>
+          </div>
+        )}
       </GlassCard>
 
       {/* Scoring */}
@@ -141,7 +191,7 @@ export function AnalysisResult({ trade, observation, model }: AnalysisResultProp
       </GlassCard>
 
       {/* Risk Assessment */}
-      {trade.confidence < 20 && (
+      {trade.confidence < 50 && (
         <GlassCard className="p-5 border border-ember-500/20">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-ember-400" />
@@ -157,7 +207,7 @@ export function AnalysisResult({ trade, observation, model }: AnalysisResultProp
       )}
 
       {/* Trade Plan */}
-      {trade.confidence >= 20 && (
+      {trade.confidence >= 50 && (
         <TradePlanPanel analysis={{ entry_zone: trade.entry_zone, stop_loss: trade.stop_loss, take_profit_1: trade.take_profit_1, take_profit_2: trade.take_profit_2 }} />
       )}
     </motion.div>

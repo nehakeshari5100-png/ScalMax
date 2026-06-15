@@ -2,14 +2,22 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict
 
 
+class LiquidityDetails(BaseModel):
+    equalHighs: bool = False
+    equalLows: bool = False
+    liquiditySweeps: bool = False
+    stopHunts: bool = False
+
+
 class VisionObservation(BaseModel):
-    """AI extracts only observations — no trade decision."""
-    quality: str = "READABLE"  # READABLE or UNREADABLE_CHART
-    trend: str = "neutral"  # bullish, bearish, neutral
-    marketStructure: str = "ranging"  # HH_HL, LH_LL, HH_LL, LH_HL, ranging
-    momentum: str = "moderate"  # strong, moderate, weak
-    liquidity: str = "none"  # above_highs, below_lows, both, none
-    volume: str = "medium"  # high, medium, low
+    quality: str = "READABLE"
+    trend: str = "neutral"
+    marketStructure: str = "ranging"
+    momentum: str = "moderate"
+    liquidity: str = "none"
+    volume: str = "medium"
+    confluence: str = "none"
+    liquidityDetails: LiquidityDetails = Field(default_factory=LiquidityDetails)
     confidence: int = Field(default=0, ge=0, le=100)
     entry_zone: str = ""
     invalidation: str = ""
@@ -29,9 +37,18 @@ class ScoringDetail(BaseModel):
     overall: int = 0
 
 
+class RiskAssessment(BaseModel):
+    accountSize: float = 0
+    riskPercent: float = 0
+    riskAmount: float = 0
+    positionSize: float = 0
+    maxLoss: float = 0
+    expectedProfit: float = 0
+    riskRewardRatio: str = ""
+
+
 class ScoredTrade(BaseModel):
-    """Engine output — computed from observations, not from AI directly."""
-    signal: str = "NEUTRAL"  # STRONG_LONG, LONG, NEUTRAL, SHORT, STRONG_SHORT
+    signal: str = "NEUTRAL"
     confidence: int = Field(default=0, ge=0, le=100)
     bullScore: int = 0
     bearScore: int = 0
@@ -40,11 +57,14 @@ class ScoredTrade(BaseModel):
     take_profit_1: str = ""
     take_profit_2: str = ""
     risk_reward: str = ""
+    marketStructureSummary: str = ""
+    liquiditySummary: str = ""
+    riskSummary: str = ""
+    riskAssessment: RiskAssessment = Field(default_factory=RiskAssessment)
     scoring: ScoringDetail = Field(default_factory=ScoringDetail)
 
 
 class ChartAnalysisResult(BaseModel):
-    """Legacy — kept for backward compat. New code uses ScoredTrade."""
     direction: str = "NO_TRADE"
     confidence: int = Field(default=0, ge=0, le=100)
     entry_zone: str = ""
@@ -87,18 +107,44 @@ class VisionAnalysisResponse(BaseModel):
     error: Optional[str] = None
 
 
-OBSERVATION_PROMPT = """Analyze this chart. Return ONLY this exact JSON — no explanations, no markdown:
+OBSERVATION_PROMPT = """You are a professional chart analyst. Analyze this chart image and return ONLY valid JSON with these exact fields — no explanations, no markdown, no code fences:
+
 {
-  "quality": "READABLE" or "UNREADABLE_CHART",
-  "trend": "bullish" or "bearish" or "neutral",
-  "marketStructure": "HH_HL" or "LH_LL" or "HH_LL" or "LH_HL" or "ranging",
-  "momentum": "strong" or "moderate" or "weak",
-  "liquidity": "above_highs" or "below_lows" or "both" or "none",
-  "volume": "high" or "medium" or "low",
+  "quality": "READABLE",
+  "trend": "bullish",
+  "marketStructure": "HH_HL",
+  "momentum": "strong",
+  "liquidity": "below_lows",
+  "volume": "high",
+  "confluence": "support",
+  "liquidityDetails": {
+    "equalHighs": false,
+    "equalLows": true,
+    "liquiditySweeps": true,
+    "stopHunts": false
+  },
   "confidence": 75,
   "entry_zone": "67250-67300",
   "invalidation": "67180",
   "target_1": "67450",
   "target_2": "67600"
 }
-Respond with ONLY the JSON. If chart is unreadable, set quality to "UNREADABLE_CHART"."""  # noqa: E501
+
+Rules:
+- quality: "READABLE" or "UNREADABLE_CHART"
+- trend: "bullish", "bearish", or "neutral"
+- marketStructure: "HH_HL" (higher highs + higher lows = bullish), "LH_LL" (lower highs + lower lows = bearish), "HH_LL" (higher highs + lower lows = bullish bias), "LH_HL" (lower highs + higher lows = bearish bias), or "ranging"
+- momentum: "strong", "moderate", or "weak"
+- liquidity: "above_highs" (sell-side), "below_lows" (buy-side), "both", or "none"
+- volume: "high", "medium", or "low"
+- confluence: "support" (bounce at support), "resistance" (reject at resistance), "breakout" (breaking a level), "rejection" (wick rejection), or "none"
+- liquidityDetails: detect equal highs, equal lows, liquidity sweeps (price spiked beyond a level then reversed), stop hunts (sharp moves hitting obvious stops)
+- confidence: 0-100 — how confident you are in your observation
+- entry_zone: best entry price range or level
+- invalidation: price level where the setup is invalid
+- target_1: first profit target
+- target_2: second profit target
+
+If chart is unreadable (blurry, cropped, no candles/bars visible), set quality to "UNREADABLE_CHART" and all other fields to null/empty defaults.
+
+Respond with ONLY the JSON object. No other text."""  # noqa: E501
