@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useOpenRouter } from '@/lib/openrouter-context';
+import { VISION_MODELS } from '@/lib/vision-models';
 import {
   Settings, Key, Brain, Bot, Save, AlertTriangle,
   Eye, EyeOff, Activity, DollarSign, BarChart3, Clock, Trash2, CheckCircle, XCircle,
@@ -237,10 +238,9 @@ export default function SettingsPage() {
                 <Bot className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)] z-10" />
                 <select value={localModel} onChange={e => setLocalModel(e.target.value)} className="glass-input w-full pl-10 py-2.5 text-sm">
                   <optgroup label="Free Models">
-                    <option value="openrouter/free">OpenRouter Free Router ($0)</option>
-                    <option value="google/gemma-3-12b-it:free">Gemma 3 12B (free)</option>
-                    <option value="google/gemma-3-4b-it:free">Gemma 3 4B (free)</option>
-                    <option value="nvidia/nemotron-nano-12b-v2-vl:free">Nemotron Nano 12B VL (free)</option>
+                    {VISION_MODELS.filter(m => m.free).map(m => (
+                      <option key={m.id} value={m.id}>{m.label}</option>
+                    ))}
                   </optgroup>
                   {isLoadingModels ? (
                     <option disabled>Loading models...</option>
@@ -250,12 +250,9 @@ export default function SettingsPage() {
                     </optgroup>
                   ) : null}
                   <optgroup label="Paid Models">
-                    <option value="google/gemma-3-27b-it">Gemma 3 27B</option>
-                    <option value="google/gemma-3-vision">Gemma 3 Vision</option>
-                    <option value="google/gemma-3-12b-it">Gemma 3 12B</option>
-                    <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash</option>
-                    <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
-                    <option value="deepseek/deepseek-chat">DeepSeek Chat</option>
+                    {VISION_MODELS.filter(m => !m.free).map(m => (
+                      <option key={m.id} value={m.id}>{m.label}</option>
+                    ))}
                   </optgroup>
                 </select>
                 {isLoadingModels && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-aurora-400" />}

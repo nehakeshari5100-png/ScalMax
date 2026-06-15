@@ -14,21 +14,11 @@ const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
 const OPENROUTER_REFERRER = 'scalpex-ai';
 
 const MODEL_PRICING: Record<string, { prompt: number; completion: number }> = {
-  'google/gemma-3-27b-it': { prompt: 0.00000027, completion: 0.00000027 },
-  'google/gemma-3-vision': { prompt: 0.00000025, completion: 0.00000025 },
   'google/gemma-3-12b-it': { prompt: 0.00000020, completion: 0.00000020 },
-  'google/gemini-2.0-flash-001': { prompt: 0.00000010, completion: 0.00000040 },
-  'google/gemini-2.0-pro-001': { prompt: 0.00000125, completion: 0.00000500 },
-  'openai/gpt-4o': { prompt: 0.00000250, completion: 0.00001000 },
   'openai/gpt-4o-mini': { prompt: 0.00000015, completion: 0.00000060 },
+  'openai/gpt-4o': { prompt: 0.00000250, completion: 0.00001000 },
   'anthropic/claude-3.5-sonnet': { prompt: 0.00000300, completion: 0.00001500 },
-  'anthropic/claude-3-haiku': { prompt: 0.00000025, completion: 0.00000125 },
-  'meta-llama/llama-3-70b-instruct': { prompt: 0.00000059, completion: 0.00000079 },
-  'meta-llama/llama-3-8b-instruct': { prompt: 0.00000006, completion: 0.00000006 },
-  'mistralai/mixtral-8x22b-instruct': { prompt: 0.00000090, completion: 0.00000090 },
   'deepseek/deepseek-chat': { prompt: 0.00000014, completion: 0.00000028 },
-  'deepseek/deepseek-r1': { prompt: 0.00000055, completion: 0.00000219 },
-  'qwen/qwen-2.5-72b-instruct': { prompt: 0.00000035, completion: 0.00000039 },
 };
 
 class TokenBucket {
