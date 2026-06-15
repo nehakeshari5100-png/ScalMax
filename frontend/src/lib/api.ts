@@ -1,4 +1,4 @@
-const API_BASE = '';
+const API_BASE = 'https://scalmax-1.onrender.com';
 
 class ApiClient {
   private baseUrl: string;
