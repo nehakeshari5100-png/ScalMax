@@ -1,10 +1,8 @@
 import logging
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.middleware import SecurityHeadersMiddleware, DebugModeMiddleware
-from app.security import get_current_user, rate_limit
-from services.auth.router import router as auth_router
 from services.vision.router import router as vision_router
 
 logger = logging.getLogger(__name__)
@@ -28,13 +26,10 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "X-CSRF-Token"],
 )
 
-app.include_router(auth_router)
-
 app.include_router(
     vision_router,
     prefix="/api/v1/vision",
     tags=["Vision"],
-    dependencies=[Depends(get_current_user), Depends(rate_limit)],
 )
 
 

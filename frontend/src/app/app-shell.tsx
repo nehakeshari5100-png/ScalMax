@@ -11,8 +11,7 @@ const NAV_ITEMS = [
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
-const AUTH_PAGES = ['/login'];
-const NO_NAV_PAGES = [...AUTH_PAGES, '/'];
+const NO_NAV_PAGES: string[] = ['/'];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();

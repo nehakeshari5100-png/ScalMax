@@ -6,7 +6,6 @@ import {
   getOpenRouterClient,
   resetOpenRouterClient,
 } from '@/lib/openrouter';
-import { api } from '@/lib/api';
 import type {
   OpenRouterModel,
   OpenRouterSessionStats,
@@ -43,7 +42,6 @@ export function OpenRouterProvider({ children }: { children: ReactNode }) {
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [stats, setStats] = useState<OpenRouterSessionStats | null>(null);
   const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const fetchedServerKey = useRef(false);
 
   const isConfigured = apiKey.length > 0 && apiKey.startsWith('sk-or-');
 
@@ -92,21 +90,6 @@ export function OpenRouterProvider({ children }: { children: ReactNode }) {
     client.clearCostHistory();
     refreshStats();
   }, [client, refreshStats]);
-
-  // Fetch server-side OpenRouter key on mount (if no key set yet)
-  useEffect(() => {
-    if (fetchedServerKey.current) return;
-    fetchedServerKey.current = true;
-    if (apiKey) return;
-    (async () => {
-      try {
-        const res = await api.getOpenRouterKey();
-        if (res.api_key && res.api_key.startsWith('sk-or-')) {
-          setApiKey(res.api_key);
-        }
-      } catch {}
-    })();
-  }, [apiKey, setApiKey]);
 
   // Auto-refresh stats every 5s
   useEffect(() => {
