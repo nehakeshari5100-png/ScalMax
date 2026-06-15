@@ -325,8 +325,8 @@ export class OpenRouterClient {
 }
 
 const DEFAULT_API_KEY = typeof process !== 'undefined'
-  ? process.env.NEXT_PUBLIC_OPENROUTER_API_KEY
-  : undefined;
+  ? (process.env.NEXT_PUBLIC_OPENROUTER_API_KEY || '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')
+  : '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';
 
 let clientInstance: OpenRouterClient | null = null;
 
