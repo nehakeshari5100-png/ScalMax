@@ -315,8 +315,8 @@ export class OpenRouterClient {
 }
 
 const DEFAULT_API_KEY = typeof process !== 'undefined'
-  ? (process.env.NEXT_PUBLIC_OPENROUTER_API_KEY || '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')
-  : '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';
+  ? (process.env.NEXT_PUBLIC_OPENROUTER_API_KEY || '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')
+  : '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';
 
 let clientInstance: OpenRouterClient | null = null;
 
