@@ -18,7 +18,7 @@ const securityHeaders = [
   },
   {
     key: 'Content-Security-Policy',
-    value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' camera: blob:; connect-src 'self' https://openrouter.ai; font-src 'self' data:;",
+    value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' camera: blob:; connect-src 'self' https://openrouter.ai https://scalmax-1.onrender.com; font-src 'self' data:;",
   },
   {
     key: 'Referrer-Policy',
@@ -46,12 +46,10 @@ const nextConfig = {
     ];
   },
   async rewrites() {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (!apiUrl) return [];
     return [
       {
         source: '/api/:path*',
-        destination: `${apiUrl}/api/:path*`,
+        destination: `${process.env.NEXT_PUBLIC_API_URL || 'https://scalmax-1.onrender.com'}/api/:path*`,
       },
     ];
   },

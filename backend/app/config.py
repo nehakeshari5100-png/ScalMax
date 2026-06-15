@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     jwt_secret: str = "change-me-to-a-secure-random-secret-in-production"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
-    cors_origins: List[str] = ["http://localhost:4200"]
+    cors_origins: List[str] = ["http://localhost:4200", "https://scal-max.vercel.app"]
     rate_limit_max: int = 60
     rate_limit_window: int = 60
     max_request_size_mb: int = 10
