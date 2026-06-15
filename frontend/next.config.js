@@ -18,7 +18,7 @@ const securityHeaders = [
   },
   {
     key: 'Content-Security-Policy',
-    value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://openrouter.ai https://api.binance.com https://api.bybit.com https://api.hyperliquid.xyz https://scalpex-api.onrender.com wss://stream.binance.com:9443 wss://stream.bybit.com wss://api.hyperliquid.xyz; font-src 'self' data:;",
+    value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://openrouter.ai https://api.binance.com https://api.bybit.com https://api.hyperliquid.xyz https://scalmax-1.onrender.com wss://stream.binance.com:9443 wss://stream.bybit.com wss://api.hyperliquid.xyz; font-src 'self' data:;",
   },
   {
     key: 'Referrer-Policy',
@@ -49,7 +49,7 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: `${process.env.API_PROXY_URL || 'https://scalpex-api.onrender.com'}/api/:path*`,
+        destination: `${process.env.API_PROXY_URL || 'https://scalmax-1.onrender.com'}/api/:path*`,
       },
     ];
   },
