@@ -11,6 +11,8 @@ env/
 
 # Env files — contains API keys and secrets
 .env
+.env.local
+.env.*.local
 *.env
 !*.env.example
 

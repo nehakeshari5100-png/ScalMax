@@ -324,10 +324,14 @@ export class OpenRouterClient {
   clearCostHistory(): void { this.costTracker.clearHistory(); }
 }
 
+const DEFAULT_API_KEY = typeof process !== 'undefined'
+  ? process.env.NEXT_PUBLIC_OPENROUTER_API_KEY
+  : undefined;
+
 let clientInstance: OpenRouterClient | null = null;
 
 export function getOpenRouterClient(): OpenRouterClient {
-  if (!clientInstance) clientInstance = new OpenRouterClient();
+  if (!clientInstance) clientInstance = new OpenRouterClient(DEFAULT_API_KEY);
   return clientInstance;
 }
 
