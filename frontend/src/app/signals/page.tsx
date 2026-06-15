@@ -263,7 +263,7 @@ export default function SignalsPage() {
                     <div className="glass-card p-3">
                       <div className="text-[10px] text-[var(--color-text-muted)] uppercase">P&L</div>
                       <span className={cn('text-sm font-bold font-mono', (selectedSignal.pnl || 0) >= 0 ? 'text-aurora-400' : 'text-red-400')}>
-                        {(selectedSignal.pnl || 0) >= 0 ? '+' : ''}${selectedSignal.pnl.toFixed(2)} ({selectedSignal.pnl_pct?.toFixed(2) || '0'}%)
+                        {(selectedSignal.pnl ?? 0) >= 0 ? '+' : ''}${(selectedSignal.pnl ?? 0).toFixed(2)} ({selectedSignal.pnl_pct?.toFixed(2) || '0'}%)
                       </span>
                     </div>
                   )}

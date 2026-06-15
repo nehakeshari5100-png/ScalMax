@@ -8,25 +8,25 @@ export function cn(...inputs: ClassValue[]) {
 export function formatPrice(price: number, decimals?: number): string {
   if (price === 0) return '$0.00';
   const d = decimals ?? (price < 0.01 ? 6 : price < 1 ? 4 : price < 100 ? 2 : 2);
-  return '$' + price.toFixed(d);
+  return '$' + (price ?? 0).toFixed(d);
 }
 
 export function formatPriceRaw(price: number, decimals?: number): string {
   if (price === 0) return '0.00';
   const d = decimals ?? (price < 0.01 ? 6 : price < 1 ? 4 : price < 100 ? 2 : 2);
-  return price.toFixed(d);
+  return (price ?? 0).toFixed(d);
 }
 
 export function formatVolume(volume: number): string {
-  if (volume >= 1_000_000_000) return (volume / 1_000_000_000).toFixed(2) + 'B';
-  if (volume >= 1_000_000) return (volume / 1_000_000).toFixed(2) + 'M';
-  if (volume >= 1_000) return (volume / 1_000).toFixed(2) + 'K';
-  return volume.toFixed(2);
+  if (volume >= 1_000_000_000) return ((volume ?? 0) / 1_000_000_000).toFixed(2) + 'B';
+  if (volume >= 1_000_000) return ((volume ?? 0) / 1_000_000).toFixed(2) + 'M';
+  if (volume >= 1_000) return ((volume ?? 0) / 1_000).toFixed(2) + 'K';
+  return (volume ?? 0).toFixed(2);
 }
 
 export function formatPercent(value: number): string {
   const sign = value >= 0 ? '+' : '';
-  return `${sign}${value.toFixed(2)}%`;
+  return `${sign}${(value ?? 0).toFixed(2)}%`;
 }
 
 export function formatTimestamp(ts: number, format: 'time' | 'date' | 'datetime' | 'relative' = 'datetime'): string {

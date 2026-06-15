@@ -153,7 +153,7 @@ export default function BacktestingPage() {
                     <div className="flex items-center justify-between">
                       <span className="font-medium">{r.config.symbol} ({r.config.timeframe})</span>
                       <span className={r.metrics.net_profit_pct >= 0 ? 'text-aurora-400' : 'text-red-400'}>
-                        {r.metrics.net_profit_pct >= 0 ? '+' : ''}{r.metrics.net_profit_pct.toFixed(2)}%
+                        {r.metrics.net_profit_pct >= 0 ? '+' : ''}{(r.metrics.net_profit_pct ?? 0).toFixed(2)}%
                       </span>
                     </div>
                     <div className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
@@ -171,14 +171,14 @@ export default function BacktestingPage() {
             <>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                  { label: 'Total Return', value: `${selectedResult.metrics.net_profit_pct >= 0 ? '+' : ''}${selectedResult.metrics.net_profit_pct.toFixed(2)}%`, color: selectedResult.metrics.net_profit_pct >= 0 ? 'text-aurora-400' : 'text-red-400' },
+                  { label: 'Total Return', value: `${selectedResult.metrics.net_profit_pct >= 0 ? '+' : ''}${(selectedResult.metrics.net_profit_pct ?? 0).toFixed(2)}%`, color: selectedResult.metrics.net_profit_pct >= 0 ? 'text-aurora-400' : 'text-red-400' },
                   { label: 'Total Trades', value: selectedResult.metrics.total_trades.toString(), color: 'text-[var(--color-text)]' },
-                  { label: 'Win Rate', value: `${(selectedResult.metrics.win_rate || 0).toFixed(1)}%`, color: selectedResult.metrics.win_rate >= 50 ? 'text-aurora-400' : 'text-red-400' },
-                  { label: 'Profit Factor', value: (selectedResult.metrics.profit_factor || 0).toFixed(2), color: selectedResult.metrics.profit_factor >= 1.5 ? 'text-aurora-400' : 'text-ember-400' },
-                  { label: 'Sharpe', value: (selectedResult.metrics.sharpe_ratio || 0).toFixed(2), color: selectedResult.metrics.sharpe_ratio >= 1.5 ? 'text-aurora-400' : 'text-ember-400' },
-                  { label: 'Sortino', value: (selectedResult.metrics.sortino_ratio || 0).toFixed(2), color: selectedResult.metrics.sortino_ratio >= 2 ? 'text-aurora-400' : 'text-ember-400' },
-                  { label: 'Max DD', value: `${(selectedResult.metrics.max_drawdown_pct || 0).toFixed(2)}%`, color: selectedResult.metrics.max_drawdown_pct <= 10 ? 'text-aurora-400' : 'text-red-400' },
-                  { label: 'Net Profit', value: `$${(selectedResult.metrics.net_profit || 0).toFixed(2)}`, color: selectedResult.metrics.net_profit >= 0 ? 'text-aurora-400' : 'text-red-400' },
+                  { label: 'Win Rate', value: `${(selectedResult.metrics.win_rate ?? 0).toFixed(1)}%`, color: selectedResult.metrics.win_rate >= 50 ? 'text-aurora-400' : 'text-red-400' },
+                  { label: 'Profit Factor', value: (selectedResult.metrics.profit_factor ?? 0).toFixed(2), color: selectedResult.metrics.profit_factor >= 1.5 ? 'text-aurora-400' : 'text-ember-400' },
+                  { label: 'Sharpe', value: (selectedResult.metrics.sharpe_ratio ?? 0).toFixed(2), color: selectedResult.metrics.sharpe_ratio >= 1.5 ? 'text-aurora-400' : 'text-ember-400' },
+                  { label: 'Sortino', value: (selectedResult.metrics.sortino_ratio ?? 0).toFixed(2), color: selectedResult.metrics.sortino_ratio >= 2 ? 'text-aurora-400' : 'text-ember-400' },
+                  { label: 'Max DD', value: `${(selectedResult.metrics.max_drawdown_pct ?? 0).toFixed(2)}%`, color: selectedResult.metrics.max_drawdown_pct <= 10 ? 'text-aurora-400' : 'text-red-400' },
+                  { label: 'Net Profit', value: `$${(selectedResult.metrics.net_profit ?? 0).toFixed(2)}`, color: selectedResult.metrics.net_profit >= 0 ? 'text-aurora-400' : 'text-red-400' },
                 ].map((stat, i) => (
                   <GlassCard key={stat.label}>
                     <p className="stat-label">{stat.label}</p>
@@ -195,7 +195,7 @@ export default function BacktestingPage() {
                       <h3 className="text-sm font-semibold">Equity Curve</h3>
                     </div>
                     <div className="flex items-center gap-1 text-xs">
-                      <Badge variant="success">+{selectedResult.metrics.net_profit_pct.toFixed(2)}%</Badge>
+                      <Badge variant="success">+{(selectedResult.metrics.net_profit_pct ?? 0).toFixed(2)}%</Badge>
                       <Badge variant="info">Sharpe {selectedResult.metrics.sharpe_ratio?.toFixed(2) || 'N/A'}</Badge>
                     </div>
                   </div>
@@ -246,12 +246,12 @@ export default function BacktestingPage() {
                     {[
                       ['Total Trades', selectedResult.metrics.total_trades],
                       ['Win / Loss / BE', `${selectedResult.metrics.wins} / ${selectedResult.metrics.losses} / ${selectedResult.metrics.break_even || 0}`],
-                      ['Win Rate', `${(selectedResult.metrics.win_rate || 0).toFixed(1)}%`],
-                      ['Avg R Multiple', (selectedResult.metrics.avg_r_multiple || 0).toFixed(2)],
-                      ['Avg Win / Loss', `$${(selectedResult.metrics.avg_win_pct || 0).toFixed(2)} / $${(selectedResult.metrics.avg_loss_pct || 0).toFixed(2)}`],
-                      ['Max Drawdown', `${(selectedResult.metrics.max_drawdown_pct || 0).toFixed(2)}%`],
-                      ['Expectancy', `$${(selectedResult.metrics.expectancy || 0).toFixed(2)}`],
-                      ['Total Fees', `$${(selectedResult.metrics.total_fees || 0).toFixed(2)}`],
+                      ['Win Rate', `${(selectedResult.metrics.win_rate ?? 0).toFixed(1)}%`],
+                      ['Avg R Multiple', (selectedResult.metrics.avg_r_multiple ?? 0).toFixed(2)],
+                      ['Avg Win / Loss', `$${(selectedResult.metrics.avg_win_pct ?? 0).toFixed(2)} / $${(selectedResult.metrics.avg_loss_pct ?? 0).toFixed(2)}`],
+                      ['Max Drawdown', `${(selectedResult.metrics.max_drawdown_pct ?? 0).toFixed(2)}%`],
+                      ['Expectancy', `$${(selectedResult.metrics.expectancy ?? 0).toFixed(2)}`],
+                      ['Total Fees', `$${(selectedResult.metrics.total_fees ?? 0).toFixed(2)}`],
                     ].map(([label, value]) => (
                       <div key={label as string} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
                         <span className="text-sm text-[var(--color-text-secondary)]">{label as string}</span>

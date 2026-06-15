@@ -121,7 +121,7 @@ export function TradingViewChart({ symbol = 'BTCUSDT', height = 400, className, 
       ctx.fillStyle = '#64748b';
       ctx.font = '10px JetBrains Mono, monospace';
       ctx.textAlign = 'right';
-      ctx.fillText(pl.toFixed(2), padding.left - 8, y + 3);
+      ctx.fillText((pl ?? 0).toFixed(2), padding.left - 8, y + 3);
     }
 
     for (let i = 0; i < 6; i++) {
@@ -178,7 +178,7 @@ export function TradingViewChart({ symbol = 'BTCUSDT', height = 400, className, 
       ctx.setLineDash([]);
       ctx.fillStyle = 'rgba(30, 32, 53, 0.9)';
       ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-      const labelText = `${crosshairPrice.toFixed(2)}`;
+      const labelText = `${(crosshairPrice ?? 0).toFixed(2)}`;
       ctx.beginPath();
       ctx.roundRect(Math.min(mousePos.current.x, w - ctx.measureText(labelText).width - 24), 0, ctx.measureText(labelText).width + 16, 22, 4);
       ctx.fill(); ctx.stroke();
@@ -252,7 +252,7 @@ export function TradingViewChart({ symbol = 'BTCUSDT', height = 400, className, 
         <div className="flex items-center gap-3">
           <span className="text-sm font-semibold">{symbol}</span>
           {crosshairPrice && crosshairTime && (
-            <span className="text-xs font-mono text-[var(--color-text-muted)]">{crosshairTime} — ${crosshairPrice.toFixed(2)}</span>
+            <span className="text-xs font-mono text-[var(--color-text-muted)]">{crosshairTime} — ${(crosshairPrice ?? 0).toFixed(2)}</span>
           )}
         </div>
         {showControls && (

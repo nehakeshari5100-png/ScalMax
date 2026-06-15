@@ -177,13 +177,13 @@ export default function DashboardPage() {
                     <Badge variant={pos.direction === 'long' ? 'long' : 'short'} size="sm">{pos.direction.toUpperCase()}</Badge>
                   </div>
                   <span className={cn('text-sm font-bold font-mono', (pos.pnl || 0) >= 0 ? 'text-aurora-400' : 'text-red-400')}>
-                    {(pos.pnl || 0) >= 0 ? '+' : ''}${(pos.pnl || 0).toFixed(2)}
+                    {(pos.pnl ?? 0) >= 0 ? '+' : ''}${(pos.pnl?.toFixed?.(2) ?? "0.00")}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)]">
-                  <span>Entry: ${(pos.entry_price || 0).toFixed(2)}</span>
-                  <span>Size: {pos.quantity.toFixed(4)}</span>
-                  <span>{(pos.pnl_pct || 0) >= 0 ? '+' : ''}{(pos.pnl_pct || 0).toFixed(2)}%</span>
+                   <span>Entry: ${(pos.entry_price?.toFixed?.(2) ?? "0.00")}</span>
+                   <span>Size: {(pos.quantity?.toFixed?.(4) ?? "0.0000")}</span>
+                   <span>{(pos.pnl_pct ?? 0) >= 0 ? '+' : ''}{(pos.pnl_pct?.toFixed?.(2) ?? "0.00")}%</span>
                 </div>
               </div>
             ))}

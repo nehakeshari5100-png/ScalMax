@@ -98,14 +98,14 @@ export default function SettingsPage() {
 
   const formatCost = (cost: number): string => {
     if (cost < 0.0001) return '$0.0000';
-    if (cost < 0.01) return `$${cost.toFixed(5)}`;
-    if (cost < 1) return `$${cost.toFixed(4)}`;
-    return `$${cost.toFixed(3)}`;
+    if (cost < 0.01) return `$${(cost ?? 0).toFixed(5)}`;
+    if (cost < 1) return `$${(cost ?? 0).toFixed(4)}`;
+    return `$${(cost ?? 0).toFixed(3)}`;
   };
 
   const formatTokens = (tokens: number): string => {
-    if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(2)}M`;
-    if (tokens >= 1_000) return `${(tokens / 1_000).toFixed(1)}K`;
+    if (tokens >= 1_000_000) return `${((tokens ?? 0) / 1_000_000).toFixed(2)}M`;
+    if (tokens >= 1_000) return `${((tokens ?? 0) / 1_000).toFixed(1)}K`;
     return tokens.toString();
   };
 

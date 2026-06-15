@@ -98,7 +98,7 @@ export function AIAnalysisPanel({ analysis, symbol = 'BTC/USDT', className }: AI
               {keyLevels.support.map((level, i) => (
                 <div key={i} className="flex items-center justify-between text-xs font-mono">
                   <span className="text-[var(--color-text-muted)]">S{i + 1}</span>
-                  <span className="text-[var(--color-text)]">${level.toFixed(2)}</span>
+                  <span className="text-[var(--color-text)]">${(level ?? 0).toFixed(2)}</span>
                 </div>
               ))}
             </div>
@@ -112,7 +112,7 @@ export function AIAnalysisPanel({ analysis, symbol = 'BTC/USDT', className }: AI
               {keyLevels.resistance.map((level, i) => (
                 <div key={i} className="flex items-center justify-between text-xs font-mono">
                   <span className="text-[var(--color-text-muted)]">R{i + 1}</span>
-                  <span className="text-[var(--color-text)]">${level.toFixed(2)}</span>
+                  <span className="text-[var(--color-text)]">${(level ?? 0).toFixed(2)}</span>
                 </div>
               ))}
             </div>
@@ -124,15 +124,15 @@ export function AIAnalysisPanel({ analysis, symbol = 'BTC/USDT', className }: AI
         <div className="grid grid-cols-3 gap-2">
           <div className="glass-card p-2 text-center">
             <span className="text-[10px] text-[var(--color-text-muted)]">Entry</span>
-            <p className="text-xs font-mono font-bold">${levels.entry.toFixed(2)}</p>
+            <p className="text-xs font-mono font-bold">${(levels.entry ?? 0).toFixed(2)}</p>
           </div>
           <div className="glass-card p-2 text-center border-red-500/10">
             <span className="text-[10px] text-[var(--color-text-muted)]">SL</span>
-            <p className="text-xs font-mono font-bold text-red-400">{levels.stop_loss ? `$${levels.stop_loss.toFixed(2)}` : '-'}</p>
+            <p className="text-xs font-mono font-bold text-red-400">{levels.stop_loss ? `$${(levels.stop_loss ?? 0).toFixed(2)}` : '-'}</p>
           </div>
           <div className="glass-card p-2 text-center border-aurora-500/10">
             <span className="text-[10px] text-[var(--color-text-muted)]">TP</span>
-            <p className="text-xs font-mono font-bold text-aurora-400">{levels.take_profit_1 ? `$${levels.take_profit_1.toFixed(2)}` : '-'}</p>
+            <p className="text-xs font-mono font-bold text-aurora-400">{levels.take_profit_1 ? `$${(levels.take_profit_1 ?? 0).toFixed(2)}` : '-'}</p>
           </div>
         </div>
       )}

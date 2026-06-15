@@ -75,7 +75,7 @@ export function MarketScanner({ className }: MarketScannerProps) {
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="text-right hidden sm:block">
-                    <div className="text-xs text-[var(--color-text-muted)]">Vol ${(result.volume24h / 1e6).toFixed(1)}M</div>
+                    <div className="text-xs text-[var(--color-text-muted)]">Vol ${((result.volume24h ?? 0) / 1e6).toFixed(1)}M</div>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className={cn('w-7 h-7 rounded-lg flex items-center justify-center',

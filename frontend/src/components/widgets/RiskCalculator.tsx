@@ -60,14 +60,14 @@ export function RiskCalculator({ className, entry: defaultEntry, stopLoss: defau
         <div className="glass-card p-4 space-y-3 border-aurora-500/10">
           <div className="text-xs font-medium text-aurora-400 uppercase tracking-wider">Results</div>
           <div className="grid grid-cols-2 gap-4">
-            <ResultItem label="Risk Amount" value={`$${riskAmount.toFixed(2)}`} />
-            <ResultItem label="Entry Risk" value={`${entryRiskPct.toFixed(2)}%`} />
-            <ResultItem label="Position Size" value={`$${positionSize.toFixed(2)}`} />
-            <ResultItem label="Quantity" value={quantity.toFixed(quantity < 1 ? 4 : 2)} />
+            <ResultItem label="Risk Amount" value={`$${(riskAmount ?? 0).toFixed(2)}`} />
+            <ResultItem label="Entry Risk" value={`${(entryRiskPct ?? 0).toFixed(2)}%`} />
+            <ResultItem label="Position Size" value={`$${(positionSize ?? 0).toFixed(2)}`} />
+            <ResultItem label="Quantity" value={(quantity ?? 0).toFixed(quantity < 1 ? 4 : 2)} />
             <ResultItem label="R:R (TP1)" value={`1:${rr1}`} />
             <ResultItem label="R:R (TP2)" value={`1:${rr2}`} />
-            <ResultItem label="TP1 PnL" value={`$${tp1Pnl.toFixed(2)}`} color="aurora" />
-            <ResultItem label="TP2 PnL" value={`$${tp2Pnl.toFixed(2)}`} color="aurora" />
+            <ResultItem label="TP1 PnL" value={`$${(tp1Pnl ?? 0).toFixed(2)}`} color="aurora" />
+            <ResultItem label="TP2 PnL" value={`$${(tp2Pnl ?? 0).toFixed(2)}`} color="aurora" />
           </div>
         </div>
       )}

@@ -37,9 +37,9 @@ export function PortfolioStats({ accountId, className }: PortfolioStatsProps) {
   }
 
   const mainStats = [
-    { label: 'Total Equity', value: `$${acct.current_balance.toLocaleString()}`, change: `${acct.total_pnl_pct >= 0 ? '+' : ''}${acct.total_pnl_pct.toFixed(2)}%`, positive: acct.total_pnl_pct >= 0, icon: DollarSign },
-    { label: 'Total P&L', value: `${acct.total_pnl >= 0 ? '+' : ''}$${acct.total_pnl.toFixed(2)}`, change: '', positive: acct.total_pnl >= 0, icon: TrendingUp },
-    { label: 'Net Change', value: `${acct.total_pnl_pct >= 0 ? '+' : ''}${acct.total_pnl_pct.toFixed(2)}%`, change: '', positive: acct.total_pnl_pct >= 0, icon: Activity },
+    { label: 'Total Equity', value: `$${acct.current_balance.toLocaleString()}`, change: `${acct.total_pnl_pct >= 0 ? '+' : ''}${(acct.total_pnl_pct ?? 0).toFixed(2)}%`, positive: acct.total_pnl_pct >= 0, icon: DollarSign },
+    { label: 'Total P&L', value: `${acct.total_pnl >= 0 ? '+' : ''}$${(acct.total_pnl ?? 0).toFixed(2)}`, change: '', positive: acct.total_pnl >= 0, icon: TrendingUp },
+    { label: 'Net Change', value: `${acct.total_pnl_pct >= 0 ? '+' : ''}${(acct.total_pnl_pct ?? 0).toFixed(2)}%`, change: '', positive: acct.total_pnl_pct >= 0, icon: Activity },
     { label: 'Initial Balance', value: `$${acct.initial_balance.toLocaleString()}`, change: '', positive: true, icon: Target },
   ];
 
@@ -97,13 +97,13 @@ export function PortfolioEquity({ accountId, className }: { accountId?: string |
         <div className="space-y-1">
           <p className="stat-label">Total P&L</p>
           <p className={cn('text-lg font-bold font-mono', acct.total_pnl >= 0 ? 'text-aurora-400' : 'text-red-400')}>
-            {acct.total_pnl >= 0 ? '+' : ''}${acct.total_pnl.toFixed(2)}
+            {acct.total_pnl >= 0 ? '+' : ''}${(acct.total_pnl ?? 0).toFixed(2)}
           </p>
         </div>
         <div className="space-y-1">
           <p className="stat-label">Total P&L%</p>
           <p className={cn('text-lg font-bold font-mono', acct.total_pnl_pct >= 0 ? 'text-aurora-400' : 'text-red-400')}>
-            {acct.total_pnl_pct >= 0 ? '+' : ''}{acct.total_pnl_pct.toFixed(2)}%
+            {acct.total_pnl_pct >= 0 ? '+' : ''}{(acct.total_pnl_pct ?? 0).toFixed(2)}%
           </p>
         </div>
       </div>

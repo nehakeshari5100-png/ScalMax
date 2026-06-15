@@ -91,14 +91,14 @@ export default function AnalyticsPage() {
   return (
     <PageContainer>
       <div className="grid grid-cols-4 gap-4 mb-6">
-        <MetricCard label="Win Rate" value={`${(stats?.win_rate || 0).toFixed(1)}%`} />
-        <MetricCard label="Profit Factor" value={(stats?.profit_factor || 0).toFixed(2)} />
-        <MetricCard label="Total P&L" value={`$${(stats?.total_pnl || 0).toFixed(2)}`} sub={`${stats?.total_trades || 0} trades`} />
-        <MetricCard label="Sharpe" value={(stats?.sharpe_ratio || 0).toFixed(2)} />
-        <MetricCard label="Max Drawdown" value={`${(stats?.max_drawdown || 0).toFixed(1)}%`} />
-        <MetricCard label="Avg RR" value={(stats?.avg_rr || 0).toFixed(2)} />
-        <MetricCard label="Avg Trade" value={`$${(stats?.avg_pnl || 0).toFixed(2)}`} />
-        <MetricCard label="Best / Worst" value={`$${(stats?.best_trade || 0).toFixed(0)} / $${(stats?.worst_trade || 0).toFixed(0)}`} />
+        <MetricCard label="Win Rate" value={`${(stats?.win_rate ?? 0).toFixed(1)}%`} />
+        <MetricCard label="Profit Factor" value={(stats?.profit_factor ?? 0).toFixed(2)} />
+        <MetricCard label="Total P&L" value={`$${(stats?.total_pnl ?? 0).toFixed(2)}`} sub={`${stats?.total_trades || 0} trades`} />
+        <MetricCard label="Sharpe" value={(stats?.sharpe_ratio ?? 0).toFixed(2)} />
+        <MetricCard label="Max Drawdown" value={`${(stats?.max_drawdown ?? 0).toFixed(1)}%`} />
+        <MetricCard label="Avg RR" value={(stats?.avg_rr ?? 0).toFixed(2)} />
+        <MetricCard label="Avg Trade" value={`$${(stats?.avg_pnl ?? 0).toFixed(2)}`} />
+        <MetricCard label="Best / Worst" value={`$${(stats?.best_trade ?? 0).toFixed(0)} / $${(stats?.worst_trade ?? 0).toFixed(0)}`} />
       </div>
 
       <div className="grid grid-cols-2 gap-6 mb-6">
@@ -136,7 +136,7 @@ export default function AnalyticsPage() {
           <div className="h-48 flex items-center justify-center">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={({ name, value }) => `${name} ${value.toFixed(0)}%`}>
+                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={({ name, value }) => `${name} ${(value ?? 0).toFixed(0)}%`}>
                   {pieData.map((_, i) => <Cell key={i} fill={i === 0 ? '#00c48c' : '#ef4444'} />)}
                 </Pie>
                 <Tooltip contentStyle={{ background: '#111827', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', fontSize: '12px' }} />
@@ -154,8 +154,8 @@ export default function AnalyticsPage() {
               <GlassCard key={sym}>
                 <p className="text-sm font-semibold">{sym}</p>
                 <p className="text-xs text-[var(--color-text-muted)]">{data.trades} trades</p>
-                <p className="text-xs font-mono">${data.pnl.toFixed(2)}</p>
-                <p className="text-xs" style={{ color: (data as { win_rate: number }).win_rate >= 50 ? '#00c48c' : '#ef4444' }}>{(data as { win_rate: number }).win_rate.toFixed(0)}% WR</p>
+                <p className="text-xs font-mono">${(data.pnl ?? 0).toFixed(2)}</p>
+                <p className="text-xs" style={{ color: (data as { win_rate: number }).win_rate >= 50 ? '#00c48c' : '#ef4444' }}>{((data as { win_rate: number }).win_rate ?? 0).toFixed(0)}% WR</p>
               </GlassCard>
             ))}
           </div>

@@ -140,7 +140,7 @@ export function Sidebar() {
                       <>
                         <Wifi className="w-2.5 h-2.5 text-aurora-400" />
                         <span className="text-[9px] text-[var(--color-text-muted)]">
-                          {stats ? `$${stats.totalCost.toFixed(4)}` : 'Connected'}
+                          {stats ? `$${(stats.totalCost ?? 0).toFixed(4)}` : 'Connected'}
                         </span>
                       </>
                     ) : (

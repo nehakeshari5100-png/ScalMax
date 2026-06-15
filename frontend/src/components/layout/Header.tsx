@@ -73,7 +73,7 @@ export function Header({ title, subtitle, connected = true }: HeaderProps) {
           <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface-dark/40 border border-white/5">
             <DollarSign className="w-3 h-3 text-aurora-400" />
             <span className="text-[11px] font-mono text-[var(--color-text-secondary)]">
-              ${stats.totalCost.toFixed(5)}
+              ${(stats.totalCost ?? 0).toFixed(5)}
             </span>
           </div>
         )}

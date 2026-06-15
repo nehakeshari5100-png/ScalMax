@@ -76,6 +76,27 @@ async def get_all_tickers():
     return await manager.get_all_tickers()
 
 
+@router.get("/tokens")
+async def get_tokens():
+    manager = get_manager()
+    tickers = await manager.get_all_tickers()
+    result = []
+    for exchange_name, exchange_tickers in tickers.items():
+        for symbol, ticker in exchange_tickers.items():
+            result.append({
+                "symbol": ticker.symbol,
+                "baseAsset": ticker.symbol.replace("USDT", "").replace("USD", ""),
+                "quoteAsset": "USDT" if "USDT" in ticker.symbol else "USD",
+                "price": ticker.price,
+                "change24h": ticker.change_24h,
+                "volume24h": ticker.volume_24h,
+                "high24h": ticker.high_24h,
+                "low24h": ticker.low_24h,
+            })
+        break
+    return result
+
+
 @router.get("/orderbook/{symbol}")
 async def get_order_book(
     symbol: str,

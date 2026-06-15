@@ -144,7 +144,7 @@ export default function TradingPage() {
             </div>
             {ticker && (
               <div className="flex items-center gap-3 text-xs text-[var(--color-text-muted)] mt-0.5">
-                <span>Vol: ${(ticker.volume24h / 1e6).toFixed(1)}M</span>
+                <span>Vol: ${((ticker.volume24h ?? 0) / 1e6).toFixed(1)}M</span>
                 <span>H: ${formatPrice(ticker.high24h)}</span>
                 <span>L: ${formatPrice(ticker.low24h)}</span>
               </div>
@@ -227,7 +227,7 @@ export default function TradingPage() {
                     </div>
                     <div className="flex items-center gap-4">
                       <span className={cn('text-sm font-bold font-mono', (pos.pnl || 0) >= 0 ? 'text-aurora-400' : 'text-red-400')}>
-                        {(pos.pnl || 0) >= 0 ? '+' : ''}${(pos.pnl || 0).toFixed(2)}
+                        {(pos.pnl ?? 0) >= 0 ? '+' : ''}${(pos.pnl ?? 0).toFixed(2)}
                       </span>
                       <Button variant="danger" size="sm" onClick={() => handleClosePosition(pos)}>Close</Button>
                     </div>
@@ -255,7 +255,7 @@ export default function TradingPage() {
               </button>
             </div>
             <div className="p-4 space-y-3">
-              <Input label="Entry Price" placeholder={ticker ? `$${ticker.price.toFixed(2)}` : 'Auto'} value={entryPrice} onChange={e => setEntryPrice(e.target.value)} />
+              <Input label="Entry Price" placeholder={ticker ? `$${(ticker.price ?? 0).toFixed(2)}` : 'Auto'} value={entryPrice} onChange={e => setEntryPrice(e.target.value)} />
               <Input label="Amount (BTC)" placeholder="0.001" value={quantity} onChange={e => setQuantity(e.target.value)} />
               <Input label="Stop Loss" placeholder="Optional" value={stopLoss} onChange={e => setStopLoss(e.target.value)} />
               <Input label="Take Profit 1" placeholder="Optional" value={takeProfit1} onChange={e => setTakeProfit1(e.target.value)} />

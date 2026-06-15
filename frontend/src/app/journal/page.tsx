@@ -79,7 +79,7 @@ export default function JournalPage() {
 
   const closedTrades = trades.filter(t => t.status === 'closed');
   const winRate = closedTrades.length > 0
-    ? (closedTrades.filter(t => (t.pnl || 0) > 0).length / closedTrades.length * 100).toFixed(1)
+    ? ((closedTrades.filter(t => (t.pnl || 0) > 0).length / closedTrades.length * 100) || 0).toFixed(1)
     : '0';
   const totalPnl = closedTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
 
@@ -115,7 +115,7 @@ export default function JournalPage() {
         {[
           { label: 'Total Trades', value: trades.length.toString(), color: 'text-aurora-400' },
           { label: 'Win Rate', value: `${winRate}%`, color: 'text-aurora-400' },
-          { label: 'Total P&L', value: `${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}`, color: totalPnl >= 0 ? 'text-aurora-400' : 'text-red-400' },
+          { label: 'Total P&L', value: `${totalPnl >= 0 ? '+' : ''}$${(totalPnl ?? 0).toFixed(2)}`, color: totalPnl >= 0 ? 'text-aurora-400' : 'text-red-400' },
           { label: 'Open Trades', value: trades.filter(t => t.status === 'open').length.toString(), color: 'text-cyber-400' },
         ].map((stat, i) => (
           <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
@@ -151,10 +151,10 @@ export default function JournalPage() {
           </div>
           {stats && (
             <div className="grid grid-cols-2 gap-3">
-              <div><p className="text-[10px] text-[var(--color-text-muted)]">Profit Factor</p><p className="text-sm font-mono">{(stats.profit_factor || 0).toFixed(2)}</p></div>
-              <div><p className="text-[10px] text-[var(--color-text-muted)]">Avg Trade</p><p className="text-sm font-mono">${(stats.avg_pnl || 0).toFixed(2)}</p></div>
-              <div><p className="text-[10px] text-[var(--color-text-muted)]">Max DD</p><p className="text-sm font-mono">{(stats.max_drawdown || 0).toFixed(1)}%</p></div>
-              <div><p className="text-[10px] text-[var(--color-text-muted)]">Sharpe</p><p className="text-sm font-mono">{(stats.sharpe_ratio || 0).toFixed(2)}</p></div>
+              <div><p className="text-[10px] text-[var(--color-text-muted)]">Profit Factor</p><p className="text-sm font-mono">{(stats.profit_factor ?? 0).toFixed(2)}</p></div>
+              <div><p className="text-[10px] text-[var(--color-text-muted)]">Avg Trade</p><p className="text-sm font-mono">${(stats.avg_pnl ?? 0).toFixed(2)}</p></div>
+              <div><p className="text-[10px] text-[var(--color-text-muted)]">Max DD</p><p className="text-sm font-mono">{(stats.max_drawdown ?? 0).toFixed(1)}%</p></div>
+              <div><p className="text-[10px] text-[var(--color-text-muted)]">Sharpe</p><p className="text-sm font-mono">{(stats.sharpe_ratio ?? 0).toFixed(2)}</p></div>
             </div>
           )}
         </GlassCard>
@@ -214,7 +214,7 @@ export default function JournalPage() {
                   <td className="px-4 py-3 text-xs font-mono text-right">{t.close_price ? `$${formatPrice(t.close_price)}` : '-'}</td>
                   <td className={cn('px-4 py-3 text-xs font-mono text-right font-medium',
                     (t.pnl || 0) >= 0 ? 'text-aurora-400' : 'text-red-400')}>
-                    {(t.pnl || 0) >= 0 ? '+' : ''}${(t.pnl || 0).toFixed(2)}
+                    {(t.pnl ?? 0) >= 0 ? '+' : ''}${(t.pnl ?? 0).toFixed(2)}
                   </td>
                   <td className="px-4 py-3">
                     <Badge variant={t.status === 'closed' ? 'success' : t.status === 'open' ? 'info' : 'neutral'} size="sm">{t.status}</Badge>
@@ -245,8 +245,8 @@ export default function JournalPage() {
                 <div><div className="text-[10px] text-[var(--color-text-muted)] uppercase">Entry</div><div className="text-sm font-mono font-bold">${formatPrice(selectedTrade.entry_price)}</div></div>
                 <div><div className="text-[10px] text-[var(--color-text-muted)] uppercase">Exit</div><div className="text-sm font-mono font-bold">{selectedTrade.close_price ? `$${formatPrice(selectedTrade.close_price)}` : '-'}</div></div>
                 <div><div className="text-[10px] text-[var(--color-text-muted)] uppercase">Quantity</div><div className="text-sm font-mono font-bold">{selectedTrade.quantity}</div></div>
-                <div><div className="text-[10px] text-[var(--color-text-muted)] uppercase">P&L</div><div className={cn('text-sm font-mono font-bold', (selectedTrade.pnl || 0) >= 0 ? 'text-aurora-400' : 'text-red-400')}>{(selectedTrade.pnl || 0) >= 0 ? '+' : ''}${(selectedTrade.pnl || 0).toFixed(2)}</div></div>
-                <div><div className="text-[10px] text-[var(--color-text-muted)] uppercase">P&L%</div><div className={cn('text-sm font-mono font-bold', (selectedTrade.pnl_pct || 0) >= 0 ? 'text-aurora-400' : 'text-red-400')}>{(selectedTrade.pnl_pct || 0) >= 0 ? '+' : ''}{(selectedTrade.pnl_pct || 0).toFixed(2)}%</div></div>
+                <div><div className="text-[10px] text-[var(--color-text-muted)] uppercase">P&L</div><div className={cn('text-sm font-mono font-bold', (selectedTrade.pnl ?? 0) >= 0 ? 'text-aurora-400' : 'text-red-400')}>{(selectedTrade.pnl ?? 0) >= 0 ? '+' : ''}${(selectedTrade.pnl ?? 0).toFixed(2)}</div></div>
+                <div><div className="text-[10px] text-[var(--color-text-muted)] uppercase">P&L%</div><div className={cn('text-sm font-mono font-bold', (selectedTrade.pnl_pct ?? 0) >= 0 ? 'text-aurora-400' : 'text-red-400')}>{(selectedTrade.pnl_pct ?? 0) >= 0 ? '+' : ''}{(selectedTrade.pnl_pct ?? 0).toFixed(2)}%</div></div>
                 <div><div className="text-[10px] text-[var(--color-text-muted)] uppercase">Exit Reason</div><div className="text-sm font-mono font-bold">{selectedTrade.exit_reason || '-'}</div></div>
               </div>
             </GlassCard>
