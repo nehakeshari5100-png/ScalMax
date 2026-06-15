@@ -1,7 +1,10 @@
+import logging
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 from app.middleware import SecurityHeadersMiddleware, DebugModeMiddleware
 from app.security import get_current_user, rate_limit
 from services.auth.router import router as auth_router
@@ -22,9 +25,15 @@ from services.papertrading.router import router as papertrading_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     exchange_manager = ExchangeManager.get_instance()
-    await exchange_manager.start()
+    try:
+        await exchange_manager.start()
+    except Exception as e:
+        logger.warning("Exchange manager failed to start (app will still serve): %s", e)
     yield
-    await exchange_manager.stop()
+    try:
+        await exchange_manager.stop()
+    except Exception as e:
+        logger.warning("Exchange manager stop error: %s", e)
 
 
 app = FastAPI(
