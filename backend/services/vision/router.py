@@ -18,7 +18,7 @@ MAX_FILE_SIZE = 10 * 1024 * 1024
 async def analyze_chart(
     file: UploadFile = File(...),
     api_key: str = Form(...),
-    model: str = Form("openrouter/free"),
+    model: str = Form("nex-agi/nex-n2-pro:free"),
     prompt: str = Form(""),
 ):
     """

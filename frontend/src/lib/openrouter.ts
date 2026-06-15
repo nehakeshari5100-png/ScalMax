@@ -175,7 +175,7 @@ export class OpenRouterClient {
 
   constructor(apiKey?: string, modelName?: string) {
     this.apiKey = apiKey || '';
-    this.modelName = modelName || 'openrouter/free';
+    this.modelName = modelName || 'nex-agi/nex-n2-pro:free';
     this.rateLimiter = new TokenBucket(60, 30);
     this.costTracker = new CostTracker();
   }
