@@ -185,7 +185,7 @@ export class OpenRouterClient {
 
   constructor(apiKey?: string, modelName?: string) {
     this.apiKey = apiKey || '';
-    this.modelName = modelName || 'google/gemma-3-27b-it';
+    this.modelName = modelName || 'openrouter/free';
     this.rateLimiter = new TokenBucket(60, 30);
     this.costTracker = new CostTracker();
   }

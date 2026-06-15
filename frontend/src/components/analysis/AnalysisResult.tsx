@@ -3,239 +3,162 @@
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { GlassCard } from '@/components/ui/GlassCard';
-import { Badge } from '@/components/ui/Badge';
+import { ScoringGauge } from './ScoringGauge';
+import { TradePlanPanel } from './TradePlanPanel';
 import {
   TrendingUp, TrendingDown, Minus, Shield, Brain, Target,
-  Zap, AlertTriangle, BarChart3, Eye,
+  Zap, AlertTriangle, BarChart3, Eye, Activity, DollarSign,
 } from 'lucide-react';
-import type { ChartAnalysisResult } from '@/types/vision';
+import type { ScoredTrade, VisionObservation } from '@/types/vision';
 
 interface AnalysisResultProps {
-  data: ChartAnalysisResult;
+  trade: ScoredTrade;
+  observation: VisionObservation;
   model: string;
 }
 
-function Section({ title, icon: Icon, children, className }: { title: string; icon: any; children: React.ReactNode; className?: string }) {
-  return (
-    <GlassCard className={cn('p-5', className)}>
-      <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/5">
-        <Icon className="w-4 h-4 text-aurora-400" />
-        <h3 className="text-sm font-semibold">{title}</h3>
-      </div>
-      <div className="space-y-2 text-sm leading-relaxed text-[var(--color-text)]">
-        {children}
-      </div>
-    </GlassCard>
-  );
-}
+const SIGNAL_CONFIG: Record<string, { icon: any; color: string; bg: string; border: string; label: string }> = {
+  STRONG_LONG: { icon: TrendingUp, color: 'text-aurora-400', bg: 'bg-aurora-500/15', border: 'border-aurora-500/25', label: 'STRONG LONG' },
+  LONG: { icon: TrendingUp, color: 'text-aurora-500', bg: 'bg-aurora-500/10', border: 'border-aurora-500/15', label: 'LONG' },
+  NEUTRAL: { icon: Minus, color: 'text-ember-400', bg: 'bg-ember-500/10', border: 'border-ember-500/20', label: 'NEUTRAL' },
+  SHORT: { icon: TrendingDown, color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/15', label: 'SHORT' },
+  STRONG_SHORT: { icon: TrendingDown, color: 'text-red-400', bg: 'bg-red-500/15', border: 'border-red-500/25', label: 'STRONG SHORT' },
+};
 
-function Tag({ children, variant }: { children: string; variant?: 'info' | 'success' | 'warn' | 'default' }) {
+function Tag({ children, color }: { children: string | number; color?: string }) {
   return (
     <span className={cn(
-      'inline-flex px-2.5 py-1 rounded-md text-xs font-medium',
-      variant === 'info' && 'bg-cyber-500/10 text-cyber-400 border border-cyber-500/20',
-      variant === 'success' && 'bg-aurora-500/10 text-aurora-400 border border-aurora-500/20',
-      variant === 'warn' && 'bg-ember-500/10 text-ember-400 border border-ember-500/20',
-      variant === 'default' && 'bg-surface-elevated/60 text-[var(--color-text-muted)] border border-white/5',
+      'inline-flex px-2 py-0.5 rounded text-[10px] font-medium',
+      color === 'green' && 'bg-aurora-500/10 text-aurora-400',
+      color === 'red' && 'bg-red-500/10 text-red-400',
+      color === 'amber' && 'bg-ember-500/10 text-ember-400',
+      color === 'blue' && 'bg-cyber-500/10 text-cyber-400',
+      !color && 'bg-surface-elevated/60 text-[var(--color-text-muted)]',
     )}>{children}</span>
   );
 }
 
-export function AnalysisResult({ data, model }: AnalysisResultProps) {
-  const isLong = data.direction === 'LONG';
-  const isShort = data.direction === 'SHORT';
-  const isNoTrade = data.direction === 'NO_TRADE';
+export function AnalysisResult({ trade, observation, model }: AnalysisResultProps) {
+  const signal = SIGNAL_CONFIG[trade.signal] || SIGNAL_CONFIG.NEUTRAL;
+  const isNoTrade = trade.signal === 'NEUTRAL' && trade.confidence === 0;
+  const VerdictIcon = signal.icon;
 
-  const VerdictIcon = isLong ? TrendingUp : isShort ? TrendingDown : Minus;
-  const verdictColor = isLong ? 'text-aurora-400' : isShort ? 'text-red-400' : 'text-ember-400';
-  const verdictBg = isLong ? 'bg-aurora-500/10' : isShort ? 'bg-red-500/10' : 'bg-ember-500/10';
-  const verdictBorder = isLong ? 'border-aurora-500/20' : isShort ? 'border-red-500/20' : 'border-ember-500/20';
+  const confidenceColor = trade.confidence >= 80 ? 'bg-aurora-400' : trade.confidence >= 50 ? 'bg-ember-400' : 'bg-red-400';
 
-  const confidenceColor = data.confidence >= 80 ? 'bg-aurora-400' : data.confidence >= 50 ? 'bg-ember-400' : 'bg-red-400';
+  const obsTagColor = (v: string, bullish: string) => {
+    if (v === bullish) return 'green';
+    if (v === 'neutral' || v === 'none' || v === 'medium' || v === 'moderate' || v === 'ranging') return 'amber';
+    return 'red';
+  };
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Brain className="w-5 h-5 text-cyber-400" />
-          <h2 className="text-base font-bold">Analysis Results</h2>
+          <h2 className="text-base font-bold">Scored Trade</h2>
           <span className="text-[10px] text-[var(--color-text-muted)] font-mono">{model.split('/').pop()}</span>
         </div>
       </div>
 
-      {/* AI Verdict */}
-      <GlassCard className={cn('p-6 border', verdictBorder)}>
+      {/* Verdict */}
+      <GlassCard className={cn('p-6 border', signal.border)}>
         <div className="flex items-center gap-4">
-          <div className={cn('w-14 h-14 rounded-2xl flex items-center justify-center', verdictBg)}>
-            <VerdictIcon className={cn('w-7 h-7', verdictColor)} />
+          <div className={cn('w-14 h-14 rounded-2xl flex items-center justify-center', signal.bg)}>
+            <VerdictIcon className={cn('w-7 h-7', signal.color)} />
           </div>
           <div className="flex-1">
-            <p className={cn('text-lg font-bold', verdictColor)}>
-              {isNoTrade ? 'NO TRADE' : data.direction}
+            <p className={cn('text-lg font-bold', signal.color)}>
+              {isNoTrade ? 'NO TRADE' : signal.label}
             </p>
-            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">AI Verdict</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Engine Decision</p>
+            <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
+              Bull {trade.bullScore} / Bear {trade.bearScore}
+            </p>
           </div>
           <div className="text-right">
             <div className="flex items-center gap-2">
               <div className="w-20 h-2 rounded-full bg-white/5 overflow-hidden">
-                <div className={cn('h-full rounded-full transition-all', confidenceColor)} style={{ width: `${data.confidence}%` }} />
+                <div className={cn('h-full rounded-full transition-all', confidenceColor)} style={{ width: `${trade.confidence}%` }} />
               </div>
-              <span className={cn('text-sm font-bold font-mono', confidenceColor.replace('bg-', 'text-'))}>{data.confidence}%</span>
+              <span className={cn('text-sm font-bold font-mono', confidenceColor.replace('bg-', 'text-'))}>{trade.confidence}%</span>
             </div>
-            <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Confidence</p>
+            <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Engine Confidence</p>
           </div>
         </div>
       </GlassCard>
 
-      <div className="grid lg:grid-cols-2 gap-5">
-        {/* Trade Setup */}
-        <Section title="Trade Setup" icon={Target}>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-            <div><span className="text-xs text-[var(--color-text-muted)]">Entry Zone</span><p className="font-mono text-sm font-medium">{data.entry_zone || '-'}</p></div>
-            <div><span className="text-xs text-[var(--color-text-muted)]">Stop Loss</span><p className="font-mono text-sm font-medium text-red-400">{data.invalidation || '-'}</p></div>
-            <div><span className="text-xs text-[var(--color-text-muted)]">Take Profit 1</span><p className="font-mono text-sm font-medium text-aurora-400">{data.target_1 || '-'}</p></div>
-            <div><span className="text-xs text-[var(--color-text-muted)]">Take Profit 2</span><p className="font-mono text-sm font-medium text-aurora-400">{data.target_2 || '-'}</p></div>
-            <div className="col-span-2"><span className="text-xs text-[var(--color-text-muted)]">Risk/Reward</span><p className="font-mono text-sm font-medium">{data.risk_reward || '-'}</p></div>
+      {/* Observations */}
+      <GlassCard className="p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Activity className="w-4 h-4 text-cyber-400" />
+          <h3 className="text-sm font-semibold">Chart Observations</h3>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-[var(--color-text-muted)]">Trend</span>
+            <Tag color={obsTagColor(observation.trend, 'bullish')}>{observation.trend}</Tag>
           </div>
-          {data.reasons.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-white/5">
-              <span className="text-xs text-[var(--color-text-muted)] block mb-2">Reasons</span>
-              <ul className="space-y-1">
-                {data.reasons.map((r, i) => (
-                  <li key={i} className="flex items-start gap-2 text-xs text-[var(--color-text)]">
-                    <span className="text-aurora-400 mt-0.5">&#x2022;</span>
-                    {r}
-                  </li>
-                ))}
-              </ul>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-[var(--color-text-muted)]">Structure</span>
+            <Tag color={obsTagColor(observation.marketStructure, 'HH_HL')}>{observation.marketStructure}</Tag>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-[var(--color-text-muted)]">Momentum</span>
+            <Tag color={obsTagColor(observation.momentum, 'strong')}>{observation.momentum}</Tag>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-[var(--color-text-muted)]">Liquidity</span>
+            <Tag color={obsTagColor(observation.liquidity, 'below_lows')}>{observation.liquidity}</Tag>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-[var(--color-text-muted)]">Volume</span>
+            <Tag color={obsTagColor(observation.volume, 'high')}>{observation.volume}</Tag>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-[var(--color-text-muted)]">AI Confidence</span>
+            <Tag>{`${observation.confidence}%`}</Tag>
+          </div>
+        </div>
+      </GlassCard>
+
+      {/* Scoring */}
+      <ScoringGauge scoring={trade.scoring} />
+
+      {/* Trade Setup */}
+      <GlassCard className="p-5">
+        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/5">
+          <Target className="w-4 h-4 text-aurora-400" />
+          <h3 className="text-sm font-semibold">Trade Setup</h3>
+        </div>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+          <div><span className="text-xs text-[var(--color-text-muted)]">Entry Zone</span><p className="font-mono text-sm font-medium">{trade.entry_zone || '-'}</p></div>
+          <div><span className="text-xs text-[var(--color-text-muted)]">Stop Loss</span><p className="font-mono text-sm font-medium text-red-400">{trade.stop_loss || '-'}</p></div>
+          <div><span className="text-xs text-[var(--color-text-muted)]">TP 1</span><p className="font-mono text-sm font-medium text-aurora-400">{trade.take_profit_1 || '-'}</p></div>
+          <div><span className="text-xs text-[var(--color-text-muted)]">TP 2</span><p className="font-mono text-sm font-medium text-aurora-400">{trade.take_profit_2 || '-'}</p></div>
+          <div className="col-span-2"><span className="text-xs text-[var(--color-text-muted)]">Risk/Reward</span><p className="font-mono text-sm font-medium">{trade.risk_reward || '-'}</p></div>
+        </div>
+      </GlassCard>
+
+      {/* Risk Assessment */}
+      {trade.confidence < 20 && (
+        <GlassCard className="p-5 border border-ember-500/20">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-ember-400" />
+            <p className="text-xs text-ember-400">Low confidence trade ({trade.confidence}%). Consider skipping or using a tighter stop.</p>
+          </div>
+          {observation.quality === 'UNREADABLE_CHART' && (
+            <div className="flex items-center gap-2 mt-2">
+              <AlertTriangle className="w-4 h-4 text-red-400" />
+              <p className="text-xs text-red-400">Chart quality too low for reliable analysis.</p>
             </div>
           )}
-        </Section>
-
-        {/* Risk Assessment */}
-        <Section title="Risk Assessment" icon={AlertTriangle}>
-          {data.warnings.length > 0 ? (
-            <ul className="space-y-2">
-              {data.warnings.map((w, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm px-3 py-2 rounded-lg bg-ember-500/5 border border-ember-500/10">
-                  <AlertTriangle className="w-4 h-4 text-ember-400 shrink-0 mt-0.5" />
-                  <span className="text-xs text-ember-400/90">{w}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-xs text-[var(--color-text-muted)]">No warnings detected</p>
-          )}
-          {data.riskZones.length > 0 && (
-            <div className="mt-4">
-              <span className="text-xs text-[var(--color-text-muted)] block mb-2">Risk Zones</span>
-              <ul className="space-y-1">
-                {data.riskZones.map((z, i) => (
-                  <li key={i} className="flex items-start gap-2 text-xs text-[var(--color-text)]">
-                    <span className="text-red-400 mt-0.5">&#x2022;</span>
-                    {z}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </Section>
-
-        {/* Market Structure */}
-        <Section title="Market Structure" icon={BarChart3}>
-          <div className="space-y-3">
-            <div>
-              <span className="text-xs text-[var(--color-text-muted)]">Trend</span>
-              <p className="text-sm mt-0.5">{data.trend || 'Not available'}</p>
-            </div>
-            <div>
-              <span className="text-xs text-[var(--color-text-muted)]">Structure</span>
-              <p className="text-sm mt-0.5">{data.marketStructure || 'Not available'}</p>
-            </div>
-            <div>
-              <span className="text-xs text-[var(--color-text-muted)]">Trend Strength</span>
-              <p className="text-sm mt-0.5">{data.trendStrength || 'Not available'}</p>
-            </div>
-          </div>
-        </Section>
-
-        {/* Liquidity Analysis */}
-        <Section title="Liquidity Analysis" icon={Eye}>
-          <p className="text-sm">{data.liquidity || 'Not available'}</p>
-        </Section>
-
-        {/* SMC Analysis */}
-        <Section title="Smart Money Concepts" icon={Eye} className="lg:col-span-2">
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div className="space-y-3">
-              <div className="flex items-start gap-3 p-3 rounded-lg bg-surface-elevated/40 border border-white/5">
-                <div className="w-4 h-4 text-cyber-400 shrink-0 mt-0.5 flex items-center justify-center"><span className="text-xs font-bold">&#x2194;</span></div>
-                <div>
-                  <span className="text-xs font-medium text-cyber-400">FVG</span>
-                  <p className="text-xs mt-1 text-[var(--color-text)]">{data.fvg || 'Not detected'}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 p-3 rounded-lg bg-surface-elevated/40 border border-white/5">
-                <Shield className="w-4 h-4 text-aurora-400 shrink-0 mt-0.5" />
-                <div>
-                  <span className="text-xs font-medium text-aurora-400">Order Blocks</span>
-                  <p className="text-xs mt-1 text-[var(--color-text)]">{data.orderBlocks || 'Not detected'}</p>
-                </div>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-start gap-3 p-3 rounded-lg bg-surface-elevated/40 border border-white/5">
-                <Zap className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
-                <div>
-                  <span className="text-xs font-medium text-purple-400">Break of Structure</span>
-                  <p className="text-xs mt-1 text-[var(--color-text)]">{data.bos || 'Not detected'}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 p-3 rounded-lg bg-surface-elevated/40 border border-white/5">
-                <Eye className="w-4 h-4 text-ember-400 shrink-0 mt-0.5" />
-                <div>
-                  <span className="text-xs font-medium text-ember-400">Change of Character</span>
-                  <p className="text-xs mt-1 text-[var(--color-text)]">{data.choch || 'Not detected'}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Section>
-
-        {/* Indicators */}
-        <Section title="Indicators" icon={BarChart3} className="lg:col-span-2">
-          <div className="grid grid-cols-3 gap-4">
-            <div className="p-3 rounded-lg bg-surface-elevated/40 border border-white/5 text-center">
-              <span className="text-xs text-[var(--color-text-muted)]">RSI</span>
-              <p className="text-sm font-bold font-mono mt-1">{data.rsi || '-'}</p>
-            </div>
-            <div className="p-3 rounded-lg bg-surface-elevated/40 border border-white/5 text-center">
-              <span className="text-xs text-[var(--color-text-muted)]">EMA</span>
-              <p className="text-sm font-bold font-mono mt-1">{data.ema || '-'}</p>
-            </div>
-            <div className="p-3 rounded-lg bg-surface-elevated/40 border border-white/5 text-center">
-              <span className="text-xs text-[var(--color-text-muted)]">Trend Strength</span>
-              <p className="text-sm font-bold font-mono mt-1">{data.trendStrength || '-'}</p>
-            </div>
-          </div>
-        </Section>
-      </div>
-
-      {data.entryIdeas.length > 0 && (
-        <GlassCard className="p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Zap className="w-4 h-4 text-aurora-400" />
-            <h3 className="text-sm font-semibold">Entry Ideas</h3>
-          </div>
-          <ul className="space-y-1">
-            {data.entryIdeas.map((idea, i) => (
-              <li key={i} className="flex items-start gap-2 text-xs text-[var(--color-text)]">
-                <span className="text-aurora-400 mt-0.5">&#x2022;</span>
-                {idea}
-              </li>
-            ))}
-          </ul>
         </GlassCard>
+      )}
+
+      {/* Trade Plan */}
+      {trade.confidence >= 20 && (
+        <TradePlanPanel analysis={{ entry_zone: trade.entry_zone, stop_loss: trade.stop_loss, take_profit_1: trade.take_profit_1, take_profit_2: trade.take_profit_2 }} />
       )}
     </motion.div>
   );

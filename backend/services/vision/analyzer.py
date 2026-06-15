@@ -1,80 +1,72 @@
+"""Vision Analysis Engine — sends chart images to OpenRouter and extracts structured observations."""
 
-"""
-Vision Analysis Engine — sends chart screenshots to OpenRouter
-vision-capable models and returns structured JSON analysis.
-
-Supports:
-- Gemma 3 Vision (default)
-- Any vision model available through OpenRouter
-- Image base64 encoding
-- Configurable prompt
-- Strict JSON-only output parsing
-"""
-
+import base64
+import hashlib
 import json
 import re
+from io import BytesIO
 from typing import Optional
 
 import httpx
+from PIL import Image
 
 from services.vision.models import (
-    ChartAnalysisResult,
-    DEFAULT_SYSTEM_PROMPT,
+    VisionObservation,
+    OBSERVATION_PROMPT,
     VisionAnalysisResponse,
 )
 
 OPENROUTER_BASE = "https://openrouter.ai/api/v1"
+_cache: dict[str, VisionAnalysisResponse] = {}
+
+
+def _optimize_image(image_data: bytes, max_width: int = 800, quality: int = 55) -> bytes:
+    """Resize to max_width, convert to JPEG quality, strip metadata."""
+    img = Image.open(BytesIO(image_data))
+    if img.width > max_width:
+        ratio = max_width / img.width
+        new_height = int(img.height * ratio)
+        img = img.resize((max_width, new_height), Image.LANCZOS)
+    if img.mode in ("RGBA", "P"):
+        img = img.convert("RGB")
+    buffer = BytesIO()
+    img.save(buffer, format="JPEG", quality=quality, optimize=True)
+    return buffer.getvalue()
+
+
+def _cache_key(image_data: bytes, model: str) -> str:
+    return hashlib.md5(image_data + model.encode()).hexdigest()
 
 
 class VisionAnalyzer:
-    """
-    Sends chart images to OpenRouter vision models and parses
-    the structured JSON response.
-
-    The analyzer acts ONLY as a chart analyst — it never generates
-    trading signals or buy/sell recommendations.
-    """
+    """Sends chart images to OpenRouter vision models and extracts observations."""
 
     @staticmethod
     async def analyze(
         api_key: str,
-        image_base64: str,
-        model: str = "google/gemma-3-vision",
+        image_data: bytes,
+        model: str = "openrouter/free",
         prompt: str = "",
     ) -> VisionAnalysisResponse:
-        """
-        Analyze a chart image using the specified vision model.
+        """Analyze a chart image and return structured observations."""
+        optimized = _optimize_image(image_data)
+        image_b64 = base64.b64encode(optimized).decode("utf-8")
+        image_url = f"data:image/jpeg;base64,{image_b64}"
 
-        Args:
-            api_key: OpenRouter API key
-            image_base64: Base64-encoded image data
-            model: OpenRouter model identifier (default: Gemma 3 27B)
-            prompt: Optional custom prompt; uses default if empty
+        ck = _cache_key(optimized, model)
+        cached = _cache.get(ck)
+        if cached is not None:
+            return cached
 
-        Returns:
-            VisionAnalysisResponse with parsed ChartAnalysisResult
-        """
-        system_prompt = prompt if prompt else DEFAULT_SYSTEM_PROMPT
+        system_prompt = prompt if prompt else OBSERVATION_PROMPT
 
-        # Build OpenAI-compatible vision messages
         messages = [
-            {
-                "role": "system",
-                "content": system_prompt,
-            },
+            {"role": "system", "content": system_prompt},
             {
                 "role": "user",
                 "content": [
-                    {
-                        "type": "text",
-                        "text": "Analyze this chart image. Return only JSON.",
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/png;base64,{image_base64}"
-                        },
-                    },
+                    {"type": "text", "text": "Extract observations from this chart. Return only JSON."},
+                    {"type": "image_url", "image_url": {"url": image_url}},
                 ],
             },
         ]
@@ -82,8 +74,9 @@ class VisionAnalyzer:
         request_body = {
             "model": model,
             "messages": messages,
-            "temperature": 0.1,
-            "max_tokens": 2000,
+            "temperature": 0.2,
+            "top_p": 0.8,
+            "max_tokens": 150,
         }
 
         try:
@@ -98,105 +91,113 @@ class VisionAnalyzer:
                     json=request_body,
                 )
 
+                if response.status_code == 402:
+                    # Auto-retry with free router if not already using it
+                    if model != "openrouter/free":
+                        free_result = await VisionAnalyzer.analyze(
+                            api_key=api_key,
+                            image_data=image_data,
+                            model="openrouter/free",
+                            prompt=prompt,
+                        )
+                        return free_result
+                    result = VisionAnalysisResponse(
+                        success=False,
+                        error="Insufficient OpenRouter credits. Switch to 'openrouter/free' model or add credits at https://openrouter.ai/settings/credits.",
+                        model=model,
+                    )
+                    _cache[ck] = result
+                    return result
+
                 if response.status_code != 200:
                     error_detail = response.text
                     try:
                         err_json = response.json()
-                        error_detail = err_json.get("error", {}).get(
-                            "message", response.text
-                        )
+                        error_detail = err_json.get("error", {}).get("message", response.text)
                     except Exception:
                         pass
-                    return VisionAnalysisResponse(
+                    result = VisionAnalysisResponse(
                         success=False,
                         error=f"OpenRouter API error ({response.status_code}): {error_detail}",
                         model=model,
                     )
+                    _cache[ck] = result
+                    return result
 
-                result = response.json()
-
-                # Extract content from response
-                choices = result.get("choices", [])
+                result_data = response.json()
+                choices = result_data.get("choices", [])
                 if not choices:
-                    return VisionAnalysisResponse(
+                    result = VisionAnalysisResponse(
                         success=False,
                         error="No choices in OpenRouter response",
-                        raw=json.dumps(result),
+                        raw=json.dumps(result_data),
                         model=model,
                     )
+                    _cache[ck] = result
+                    return result
 
                 content = choices[0].get("message", {}).get("content", "")
                 if not content:
-                    return VisionAnalysisResponse(
+                    result = VisionAnalysisResponse(
                         success=False,
                         error="Empty response from model",
-                        raw=json.dumps(result),
+                        raw=json.dumps(result_data),
                         model=model,
                     )
+                    _cache[ck] = result
+                    return result
 
-                # Parse JSON from response
                 parsed = VisionAnalyzer._parse_json(content)
                 if parsed is None:
-                    return VisionAnalysisResponse(
+                    result = VisionAnalysisResponse(
                         success=False,
                         error="Failed to parse JSON from model response",
                         raw=content,
                         model=model,
                     )
+                    _cache[ck] = result
+                    return result
 
-                analysis = ChartAnalysisResult(**parsed)
-
-                return VisionAnalysisResponse(
+                observation = VisionObservation(**parsed)
+                result = VisionAnalysisResponse(
                     success=True,
-                    data=analysis,
+                    observation=observation,
                     raw=content,
                     model=model,
                 )
+                _cache[ck] = result
+                return result
 
         except httpx.TimeoutException:
-            return VisionAnalysisResponse(
+            result = VisionAnalysisResponse(
                 success=False,
                 error="Request timed out after 60 seconds",
                 model=model,
             )
+            _cache[ck] = result
+            return result
         except Exception as e:
-            return VisionAnalysisResponse(
+            result = VisionAnalysisResponse(
                 success=False,
                 error=f"Analysis failed: {str(e)}",
                 model=model,
             )
+            _cache[ck] = result
+            return result
 
     @staticmethod
     def _parse_json(content: str) -> Optional[dict]:
-        """
-        Extract a JSON object from the model's response text.
-
-        Handles:
-        - Pure JSON output
-        - JSON wrapped in markdown code blocks (```json ... ```)
-        - JSON with surrounding text
-        """
-        # Try direct parse first
         content = content.strip()
-
-        # Remove markdown code block fences
-        code_block_pattern = r"```(?:json)?\s*\n?(.*?)\n?```"
-        match = re.search(code_block_pattern, content, re.DOTALL)
+        match = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", content, re.DOTALL)
         if match:
             content = match.group(1).strip()
-
-        # Find JSON object boundaries
         brace_start = content.find("{")
         brace_end = content.rfind("}")
-
         if brace_start != -1 and brace_end != -1 and brace_end > brace_start:
-            json_str = content[brace_start : brace_end + 1]
             try:
-                return json.loads(json_str)
+                return json.loads(content[brace_start: brace_end + 1])
             except json.JSONDecodeError:
                 pass
-
-        # Final attempt: try parsing the whole content
         try:
             return json.loads(content)
         except json.JSONDecodeError:

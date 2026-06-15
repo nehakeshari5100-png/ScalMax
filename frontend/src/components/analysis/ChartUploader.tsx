@@ -3,12 +3,15 @@
 import { useState, useRef, useCallback, useEffect, DragEvent, ClipboardEvent } from 'react';
 import { cn } from '@/lib/utils';
 import { Upload, Eye, XCircle, AlertTriangle } from 'lucide-react';
+import { CameraCapture } from './CameraCapture';
+
+export type UploadSource = 'drag' | 'click' | 'paste' | 'camera';
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const MAX_SIZE = 20 * 1024 * 1024;
 
 interface ChartUploaderProps {
-  onImageReady: (file: File, preview: string, resolution: { width: number; height: number }) => void;
+  onImageReady: (file: File, preview: string, resolution: { width: number; height: number }, source: UploadSource) => void;
   onClear: () => void;
   disabled?: boolean;
 }
@@ -21,7 +24,7 @@ export function ChartUploader({ onImageReady, onClear, disabled }: ChartUploader
   const [fileName, setFileName] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const validateAndLoad = useCallback((file: File) => {
+  const validateAndLoad = useCallback((file: File, source: UploadSource) => {
     setError(null);
     if (!ALLOWED_TYPES.includes(file.type)) {
       setError(`Unsupported format. Use PNG, JPG, or WEBP.`);
@@ -40,7 +43,7 @@ export function ChartUploader({ onImageReady, onClear, disabled }: ChartUploader
         const res = { width: img.naturalWidth, height: img.naturalHeight };
         setResolution(res);
         setPreview(dataUrl);
-        onImageReady(file, dataUrl, res);
+        onImageReady(file, dataUrl, res, source);
       };
       img.src = dataUrl;
     };
@@ -51,7 +54,7 @@ export function ChartUploader({ onImageReady, onClear, disabled }: ChartUploader
     e.preventDefault();
     setDragOver(false);
     const file = e.dataTransfer.files[0];
-    if (file) validateAndLoad(file);
+    if (file) validateAndLoad(file, 'drag');
   }, [validateAndLoad]);
 
   const handlePaste = useCallback((e: ClipboardEvent) => {
@@ -61,10 +64,22 @@ export function ChartUploader({ onImageReady, onClear, disabled }: ChartUploader
     for (const item of arr) {
       if (item.type.startsWith('image/')) {
         const file = item.getAsFile();
-        if (file) { validateAndLoad(file); break; }
+        if (file) { validateAndLoad(file, 'paste'); break; }
       }
     }
   }, [validateAndLoad]);
+
+  const handleCameraCapture = useCallback((file: File, preview: string) => {
+    const img = new Image();
+    img.onload = () => {
+      const res = { width: img.naturalWidth, height: img.naturalHeight };
+      setResolution(res);
+      setPreview(preview);
+      setFileName(file.name);
+      onImageReady(file, preview, res, 'camera');
+    };
+    img.src = preview;
+  }, [onImageReady]);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -78,7 +93,7 @@ export function ChartUploader({ onImageReady, onClear, disabled }: ChartUploader
         if (item.type.startsWith('image/')) {
           const file = item.getAsFile();
           if (file) {
-            validateAndLoad(file);
+            validateAndLoad(file, 'paste');
             break;
           }
         }
@@ -117,7 +132,7 @@ export function ChartUploader({ onImageReady, onClear, disabled }: ChartUploader
             type="file"
             accept=".png,.jpg,.jpeg,.webp"
             className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) validateAndLoad(f); }}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) validateAndLoad(f, 'click'); }}
           />
           <div className="flex flex-col items-center gap-3">
             <div className="w-14 h-14 rounded-xl bg-aurora-500/10 flex items-center justify-center">
@@ -149,6 +164,10 @@ export function ChartUploader({ onImageReady, onClear, disabled }: ChartUploader
             </button>
           </div>
         </div>
+      )}
+
+      {!preview && (
+        <CameraCapture onCapture={handleCameraCapture} disabled={disabled} />
       )}
 
       {error && (

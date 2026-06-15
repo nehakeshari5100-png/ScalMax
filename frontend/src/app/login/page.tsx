@@ -11,7 +11,7 @@ import { Loader2, XCircle, Shield } from 'lucide-react';
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get('redirect') || '/dashboard';
+  const redirect = searchParams.get('redirect') || '/analysis';
 
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(true);
