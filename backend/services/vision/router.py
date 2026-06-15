@@ -83,7 +83,7 @@ async def list_vision_models():
                 "id": "openrouter/free",
                 "name": "OpenRouter Free Router",
                 "description": "Auto-routes to best free vision model — $0 cost",
-                "default": True,
+                "default": False,
                 "free": True,
             },
             {
@@ -111,7 +111,7 @@ async def list_vision_models():
                 "id": "nex-agi/nex-n2-pro:free",
                 "name": "Nex AGI Nex-N2-Pro (free)",
                 "description": "Free vision MoE model - 17B active / 397B total",
-                "default": False,
+                "default": True,
                 "free": True,
             },
             {
