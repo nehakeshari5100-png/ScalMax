@@ -29,11 +29,10 @@ class ApiClient {
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       ...options,
       headers,
-      credentials: 'include',
     });
 
     if (response.status === 401) {
-      if (typeof window !== 'undefined' && !endpoint.includes('/auth/')) {
+      if (typeof window !== 'undefined' && endpoint !== '/api/auth/login') {
         document.cookie = 'scalpex_token=; path=/; max-age=0';
         window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
       }
@@ -50,10 +49,11 @@ class ApiClient {
 
   setToken(token: string | null) {
     this.token = token;
+    const secure = typeof window !== 'undefined' && window.location.protocol === 'https:' ? '; Secure' : '';
     if (token) {
-      document.cookie = `scalpex_token=${encodeURIComponent(token)}; path=/; max-age=3600; SameSite=Strict; Secure`;
+      document.cookie = `scalpex_token=${encodeURIComponent(token)}; path=/; max-age=3600; SameSite=Strict${secure}`;
     } else {
-      document.cookie = 'scalpex_token=; path=/; max-age=0; SameSite=Strict; Secure';
+      document.cookie = `scalpex_token=; path=/; max-age=0; SameSite=Strict${secure}`;
     }
   }
 

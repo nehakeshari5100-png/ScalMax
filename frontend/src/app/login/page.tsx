@@ -18,14 +18,18 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 5000);
     (async () => {
       try {
         await api.login('admin');
+        clearTimeout(timer);
         router.replace(redirect);
       } catch {
+        clearTimeout(timer);
         setLoading(false);
       }
     })();
+    return () => clearTimeout(timer);
   }, [router, redirect]);
 
   const handleSubmit = async (e: FormEvent) => {

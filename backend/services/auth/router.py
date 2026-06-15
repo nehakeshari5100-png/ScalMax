@@ -18,6 +18,15 @@ from services.auth.models import (
 
 router = APIRouter(tags=["Authentication"])
 
+_ADMIN_PASSWORD_HASH: str | None = None
+
+
+def _get_admin_hash() -> str:
+    global _ADMIN_PASSWORD_HASH
+    if _ADMIN_PASSWORD_HASH is None:
+        _ADMIN_PASSWORD_HASH = get_password_hash(settings.admin_password)
+    return _ADMIN_PASSWORD_HASH
+
 
 @router.post("/api/auth/login", response_model=LoginResponse)
 async def login(
@@ -25,7 +34,7 @@ async def login(
     request: Request,
     _=Depends(rate_limit),
 ):
-    if not verify_password(body.password, get_password_hash(settings.admin_password)):
+    if not verify_password(body.password, _get_admin_hash()):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid password",
@@ -61,7 +70,7 @@ async def change_password(
     current_user: dict = Depends(get_current_user),
     _=Depends(rate_limit),
 ):
-    if not verify_password(body.current_password, get_password_hash(settings.admin_password)):
+    if not verify_password(body.current_password, _get_admin_hash()):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Current password is incorrect",

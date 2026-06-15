@@ -208,12 +208,13 @@ class PipelineOrchestrator:
         if request.include_vision and request.chart_image_base64:
             s6_start = time.time()
             try:
-                from services.vision.router import analyze_chart as analyze_image
-                vision_result = await analyze_image(
-                    request.chart_image_base64,
-                    request.api_key or "",
-                    request.vision_model,
+                from services.vision.analyzer import VisionAnalyzer
+                vision_raw = await VisionAnalyzer.analyze(
+                    api_key=request.api_key or settings.openrouter_api_key,
+                    image_base64=request.chart_image_base64,
+                    model=request.vision_model or "google/gemma-3-27b-it",
                 )
+                vision_result = vision_raw.model_dump() if hasattr(vision_raw, 'model_dump') else vision_raw
                 stages.append(PipelineResult(
                     stage=PipelineStage.ANALYZE_VISION,
                     status="completed",
