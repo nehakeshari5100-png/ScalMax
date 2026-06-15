@@ -20,7 +20,7 @@ class PipelineRequest(BaseModel):
     exchange: str = "binance"
     lookback: int = 200
     include_vision: bool = False
-    vision_model: str = "google/gemma-3-27b-it"
+    vision_model: str = "google/gemma-3-vision"
     api_key: Optional[str] = None
     chart_image_base64: Optional[str] = None
     auto_generate_signal: bool = True

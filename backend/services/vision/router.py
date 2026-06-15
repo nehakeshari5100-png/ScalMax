@@ -25,7 +25,7 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 async def analyze_chart(
     file: UploadFile = File(...),
     api_key: str = Form(...),
-    model: str = Form("google/gemma-3-27b-it"),
+    model: str = Form("google/gemma-3-vision"),
     prompt: str = Form(""),
 ):
     """

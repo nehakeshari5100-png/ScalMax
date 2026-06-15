@@ -39,7 +39,7 @@ class VisionAnalyzer:
     async def analyze(
         api_key: str,
         image_base64: str,
-        model: str = "google/gemma-3-27b-it",
+        model: str = "google/gemma-3-vision",
         prompt: str = "",
     ) -> VisionAnalysisResponse:
         """
