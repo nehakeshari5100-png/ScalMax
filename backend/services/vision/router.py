@@ -87,16 +87,16 @@ async def list_vision_models():
                 "free": True,
             },
             {
-                "id": "google/gemma-3-12b-it:free",
-                "name": "Gemma 3 12B (free)",
-                "description": "Free fast vision model",
+                "id": "google/gemma-4-26b-a4b-it:free",
+                "name": "Gemma 4 26B (free)",
+                "description": "Free vision model from Google",
                 "default": False,
                 "free": True,
             },
             {
-                "id": "google/gemma-3-4b-it:free",
-                "name": "Gemma 3 4B (free)",
-                "description": "Smallest free vision model — fastest",
+                "id": "google/gemma-4-31b-it:free",
+                "name": "Gemma 4 31B (free)",
+                "description": "Larger free vision model from Google",
                 "default": False,
                 "free": True,
             },
@@ -108,16 +108,23 @@ async def list_vision_models():
                 "free": True,
             },
             {
-                "id": "google/gemma-3-vision",
-                "name": "Gemma 3 Vision (paid)",
-                "description": "Fast vision model — may require credits",
+                "id": "nex-agi/nex-n2-pro:free",
+                "name": "Nex AGI Nex-N2-Pro (free)",
+                "description": "Free vision MoE model - 17B active / 397B total",
                 "default": False,
-                "free": False,
+                "free": True,
             },
             {
-                "id": "google/gemini-2.0-flash-001",
-                "name": "Gemini 2.0 Flash (paid)",
-                "description": "Fast, cost-effective vision model",
+                "id": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+                "name": "Nemotron 3 Nano Omni (free)",
+                "description": "Free multimodal reasoning model from NVIDIA",
+                "default": False,
+                "free": True,
+            },
+            {
+                "id": "google/gemma-3-12b-it",
+                "name": "Gemma 3 12B (paid)",
+                "description": "Vision model - requires credits",
                 "default": False,
                 "free": False,
             },
@@ -127,7 +134,7 @@ async def list_vision_models():
                 "description": "Budget-friendly OpenAI vision model",
                 "default": False,
                 "free": False,
-            },
+            }
         ]
     }
 
