@@ -116,9 +116,11 @@ export function ChartUploader({ onImageReady, onClear, disabled }: ChartUploader
     <div data-uploader className="space-y-4">
       {!preview ? (
         <div
+          tabIndex={0}
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={handleDrop}
+          onPaste={handlePaste}
           onClick={() => inputRef.current?.click()}
           className={cn(
             'relative border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-all',
