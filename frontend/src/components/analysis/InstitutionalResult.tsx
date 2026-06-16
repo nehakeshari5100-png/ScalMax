@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { GlassCard } from '@/components/ui/GlassCard';
 import {
@@ -56,7 +57,7 @@ const STATE_LABELS: Record<string, string> = {
   REVERSAL: 'Reversal',
 };
 
-export function InstitutionalResult({ extraction: { chartDetection: cd }, inst, model }: Props) {
+export const InstitutionalResult = memo(function InstitutionalResult({ extraction: { chartDetection: cd }, inst, model }: Props) {
   const biasCfg = BIAS_CONFIG[inst.bias] || BIAS_CONFIG.NO_TRADE;
   const BiasIcon = biasCfg.icon;
   const gradeCfg = GRADE_CONFIG[inst.tradeGrade] || { color: 'text-[var(--color-text-muted)]', bg: 'bg-white/5' };
@@ -182,12 +183,12 @@ export function InstitutionalResult({ extraction: { chartDetection: cd }, inst, 
               <h3 className="text-sm font-semibold">Trade Plan</h3>
               {inst.riskReward && <span className="text-[10px] font-mono text-aurora-400 ml-auto">RR {inst.riskReward}</span>}
             </div>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-              <div><span className="text-xs text-[var(--color-text-muted)]">Entry</span><p className="font-mono text-sm font-medium">{inst.tradePlan.entry}</p></div>
-              <div><span className="text-xs text-[var(--color-text-muted)]">Stop</span><p className="font-mono text-sm font-medium text-red-400">{inst.tradePlan.stop}</p></div>
-              {inst.tradePlan.tp1 && <div><span className="text-xs text-[var(--color-text-muted)]">TP1</span><p className="font-mono text-sm font-medium text-aurora-400">{inst.tradePlan.tp1}</p></div>}
-              {inst.tradePlan.tp2 && <div><span className="text-xs text-[var(--color-text-muted)]">TP2</span><p className="font-mono text-sm font-medium text-aurora-400">{inst.tradePlan.tp2}</p></div>}
-              {inst.tradePlan.tp3 && <div><span className="text-xs text-[var(--color-text-muted)]">TP3</span><p className="font-mono text-sm font-medium text-aurora-400">{inst.tradePlan.tp3}</p></div>}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+              <div className="min-w-0"><span className="text-xs text-[var(--color-text-muted)]">Entry</span><p className="font-mono text-sm font-medium break-all">{inst.tradePlan.entry}</p></div>
+              <div className="min-w-0"><span className="text-xs text-[var(--color-text-muted)]">Stop</span><p className="font-mono text-sm font-medium text-red-400 break-all">{inst.tradePlan.stop}</p></div>
+              {inst.tradePlan.tp1 && <div className="min-w-0"><span className="text-xs text-[var(--color-text-muted)]">TP1</span><p className="font-mono text-sm font-medium text-aurora-400 break-all">{inst.tradePlan.tp1}</p></div>}
+              {inst.tradePlan.tp2 && <div className="min-w-0"><span className="text-xs text-[var(--color-text-muted)]">TP2</span><p className="font-mono text-sm font-medium text-aurora-400 break-all">{inst.tradePlan.tp2}</p></div>}
+              {inst.tradePlan.tp3 && <div className="min-w-0"><span className="text-xs text-[var(--color-text-muted)]">TP3</span><p className="font-mono text-sm font-medium text-aurora-400 break-all">{inst.tradePlan.tp3}</p></div>}
             </div>
           </GlassCard>
 
@@ -271,4 +272,4 @@ export function InstitutionalResult({ extraction: { chartDetection: cd }, inst, 
       )}
     </motion.div>
   );
-}
+});

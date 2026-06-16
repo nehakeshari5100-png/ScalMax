@@ -5,7 +5,7 @@ export interface VisionModel {
 }
 
 export const VISION_MODELS: VisionModel[] = [
-  { id: 'nex-agi/nex-n2-pro:free', label: 'Nex AGI Nex-N2-Pro (free — default)', free: true },
+  { id: 'google/gemma-4-31b-it:free', label: 'Gemma 4 31B (free — default)', free: true },
   { id: 'openrouter/free', label: 'OpenRouter Free Router (auto)', free: true },
   { id: 'google/gemma-4-26b-a4b-it:free', label: 'Gemma 4 26B (free)', free: true },
   { id: 'google/gemma-4-31b-it:free', label: 'Gemma 4 31B (free)', free: true },

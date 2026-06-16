@@ -204,6 +204,7 @@ class VisionAnalysisResponse(BaseModel):
     raw: Optional[str] = None
     model: str = ""
     error: Optional[str] = None
+    detail: Optional[dict] = None
     engine: str = "institutional"
 
 

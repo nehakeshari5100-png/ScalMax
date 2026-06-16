@@ -1,5 +1,6 @@
 import re
 from enum import Enum
+from typing import List
 
 from services.vision.models import MarketExtraction, ValidationLayer, ValidationReport
 

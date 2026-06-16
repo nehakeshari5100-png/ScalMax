@@ -186,5 +186,6 @@ export interface VisionAnalysisResponse {
   raw: string | null
   model: string
   error: string | null
+  detail?: Record<string, unknown> | null
   engine: string
 }

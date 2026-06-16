@@ -13,18 +13,6 @@ import { api } from './api';
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
 const OPENROUTER_REFERRER = 'scalpex-ai';
 
-function sanitizeOrMessage(err: unknown, fallback: string): string {
-  const msg = err instanceof Error ? err.message : String(err);
-  const lower = msg.toLowerCase();
-  if (lower.includes('429') || lower.includes('too many requests') || lower.includes('rate limit')) return 'Analysis temporarily unavailable. Retrying...';
-  if (lower.includes('401') || lower.includes('unauthorized') || lower.includes('invalid api key') || lower.includes('authentication')) return 'Analysis temporarily unavailable. Retrying...';
-  if (lower.includes('402') || lower.includes('insufficient credits') || lower.includes('quota') || lower.includes('payment')) return 'Analysis temporarily unavailable. Retrying...';
-  if (lower.includes('404') || lower.includes('502') || lower.includes('503') || lower.includes('not found') || lower.includes('service unavailable') || lower.includes('bad gateway')) return 'Analysis temporarily unavailable. Retrying...';
-  if (lower.includes('provider') || lower.includes('upstream') || lower.includes('origin')) return 'Analysis temporarily unavailable. Retrying...';
-  if (lower.includes('failed to fetch') || lower.includes('network') || lower.includes('econnrefused') || lower.includes('enotfound')) return 'Analysis temporarily unavailable. Retrying...';
-  if (lower.includes('timeout') || lower.includes('abort')) return 'Analysis temporarily unavailable. Retrying...';
-  return fallback;
-}
 
 const MODEL_PRICING: Record<string, { prompt: number; completion: number }> = {
   'google/gemma-3-12b-it': { prompt: 0.00000020, completion: 0.00000020 },
@@ -188,7 +176,7 @@ export class OpenRouterClient {
 
   constructor(apiKey?: string, modelName?: string) {
     this.apiKey = (apiKey || '').trim();
-    this.modelName = modelName || 'nex-agi/nex-n2-pro:free';
+    this.modelName = modelName || 'google/gemma-4-31b-it:free';
     this.rateLimiter = new TokenBucket(60, 30);
     this.costTracker = new CostTracker();
   }
@@ -230,7 +218,7 @@ export class OpenRouterClient {
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    if (!this.apiKey) throw new Error('Analysis temporarily unavailable. Retrying...');
+    if (!this.apiKey) throw new Error('OpenRouter API key is not configured. Go to Settings to add your key.');
     const url = `${OPENROUTER_BASE}${endpoint}`;
     const response = await fetch(url, {
       ...options,
@@ -244,8 +232,9 @@ export class OpenRouterClient {
     });
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
-      const rawMsg = body.error?.message || body.message || '';
-      throw new ResponseError(sanitizeOrMessage(new Error(rawMsg), 'Analysis temporarily unavailable. Retrying...'), response.status, body);
+      const rawMsg = body.error?.message || body.message || `HTTP ${response.status}`;
+      const detail = body.error || body;
+      throw new ResponseError(rawMsg, response.status, detail);
     }
     return response.json();
   }

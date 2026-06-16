@@ -3,6 +3,8 @@ import base64
 import hashlib
 import json
 import re
+import time
+import traceback
 from io import BytesIO
 from typing import Optional
 
@@ -25,7 +27,7 @@ from services.vision.validation import SignalValidator
 
 OPENROUTER_BASE = "https://openrouter.ai/api/v1"
 _cache: dict[str, VisionAnalysisResponse] = {}
-FALLBACK_MODELS = ["nex-agi/nex-n2-pro:free", "openrouter/free"]
+FALLBACK_MODELS = ["google/gemma-4-31b-it:free", "openrouter/free"]
 RETRY_DELAYS = [2, 5, 10]
 
 
@@ -74,9 +76,12 @@ class VisionAnalyzer:
         model: str = "openrouter/free",
         prompt: str = "",
     ) -> VisionAnalysisResponse:
+        print("[PIPELINE] BACKEND ENTRY: VisionAnalyzer.analyze()")
         try:
             optimized = _optimize_image(image_data)
-        except Exception:
+            print(f"[PIPELINE] Image optimized: {len(optimized)} bytes")
+        except Exception as e:
+            print(f"[PIPELINE] Image optimization FAILED: {e}")
             return VisionAnalysisResponse(
                 success=False,
                 error="CHART_QUALITY_TOO_LOW: Image could not be processed",
@@ -88,6 +93,7 @@ class VisionAnalyzer:
         ck = _cache_key(optimized, model)
         cached = _cache.get(ck)
         if cached is not None:
+            print("[PIPELINE] Cache HIT, returning cached result")
             return cached
 
         system_prompt = prompt if prompt else INSTITUTIONAL_PROMPT
@@ -111,116 +117,157 @@ class VisionAnalyzer:
             "max_tokens": 2500,
         }
 
-        print(f"[AUDIT] model={model}, max_tokens=2500, temperature=0.2, prompt_len={len(system_prompt)}")
+        print(f"[PIPELINE] model={model}, max_tokens=2500, temperature=0.2, prompt_len={len(system_prompt)}")
 
         models_to_try = [model] + [m for m in FALLBACK_MODELS if m != model]
         last_error = None
+        last_detail = None
 
         for attempt_model in models_to_try:
             body = dict(request_body, model=attempt_model)
             ck = _cache_key(optimized, attempt_model)
             cached = _cache.get(ck)
             if cached is not None:
+                print(f"[PIPELINE] Cache HIT for {attempt_model}")
                 return cached
 
             for retry in range(len(RETRY_DELAYS) + 1):
                 try:
-                    timeout = httpx.Timeout(60.0, connect=15.0)
+                    timeout = httpx.Timeout(30.0, connect=15.0)
+                    print(f"[PIPELINE] OpenRouter request: model={attempt_model}, attempt={retry+1}")
+                    t0 = time.time()
                     async with httpx.AsyncClient(timeout=timeout) as client:
                         response = await VisionAnalyzer._do_request(client, api_key, body)
+                    t1 = time.time()
+                    print(f"[PIPELINE] OpenRouter response: HTTP {response.status_code}, took {(t1-t0)*1000:.0f}ms")
 
+                    if response.status_code != 200:
+                        err_body = ""
+                        try: err_body = response.text[:200]
+                        except: pass
+                        print(f"[PIPELINE] Non-200 on {attempt_model}: {response.status_code}, body={err_body}")
                         if response.status_code == 429:
                             if retry < len(RETRY_DELAYS):
                                 delay = RETRY_DELAYS[retry]
-                                print(f"[RETRY] 429 on {attempt_model}, attempt {retry+1}/{len(RETRY_DELAYS)}, waiting {delay}s")
+                                print(f"[PIPELINE] 429 on {attempt_model}, retry {retry+1}/{len(RETRY_DELAYS)}, waiting {delay}s")
                                 await asyncio.sleep(delay)
                                 continue
-                            print(f"[RETRY] All 429 retries exhausted for {attempt_model}")
-                            last_error = f"429 on {attempt_model}"
+                            print(f"[PIPELINE] All 429 retries exhausted for {attempt_model}")
+                            last_error = f"429 on {attempt_model}: {err_body[:200]}"
+                            last_detail = {"originalError": f"HTTP 429 (rate limited): {err_body[:200]}", "statusCode": 429, "source": "OpenRouter API", "model": attempt_model, "providerResponse": err_body[:200], "stage": "openrouter_request"}
                             break
-
                         if response.status_code == 402:
-                            last_error = f"402 on {attempt_model}"
+                            print(f"[PIPELINE] 402 (insufficient credits) on {attempt_model}")
+                            last_error = f"402 on {attempt_model}: {err_body[:200]}"
+                            last_detail = {"originalError": f"HTTP 402 (insufficient credits): {err_body[:200]}", "statusCode": 402, "source": "OpenRouter API", "model": attempt_model, "providerResponse": err_body[:200], "stage": "openrouter_request"}
                             break
+                        last_error = f"{response.status_code} on {attempt_model}: {err_body[:200]}"
+                        last_detail = {"originalError": f"HTTP {response.status_code}: {err_body[:200]}", "statusCode": response.status_code, "source": "OpenRouter API", "model": attempt_model, "providerResponse": err_body[:200], "stage": "openrouter_request"}
+                        print(f"[PIPELINE] Non-200, trying next model")
+                        break
 
-                        if response.status_code != 200:
-                            last_error = f"{response.status_code} on {attempt_model}"
-                            print(f"[FALLBACK] {attempt_model} returned {response.status_code}, trying next model")
-                            break
+                    print("[PIPELINE] Parsing JSON response body")
+                    t2 = time.time()
+                    result_data = response.json()
+                    print(f"[PIPELINE] JSON parsed in {(time.time()-t2)*1000:.0f}ms")
 
-                        result_data = response.json()
-                        choices = result_data.get("choices", [])
-                        if not choices:
-                            last_error = f"empty choices on {attempt_model}"
-                            print(f"[FALLBACK] {attempt_model} returned no choices, trying next model")
-                            break
+                    choices = result_data.get("choices", [])
+                    if not choices:
+                        resp_str = str(result_data)[:200]
+                        last_error = f"empty choices on {attempt_model}"
+                        last_detail = {"originalError": f"OpenRouter returned 0 choices in response", "statusCode": 200, "source": "OpenRouter response parser", "model": attempt_model, "providerResponse": resp_str, "stage": "parse_choices"}
+                        print(f"[PIPELINE] No choices in response: {resp_str}")
+                        break
 
-                        content = choices[0].get("message", {}).get("content", "")
-                        if not content:
-                            last_error = f"empty content on {attempt_model}"
-                            print(f"[FALLBACK] {attempt_model} returned empty content, trying next model")
-                            break
+                    content = choices[0].get("message", {}).get("content", "")
+                    if not content:
+                        msg_str = str(choices[0].get("message", {}))[:200]
+                        last_error = f"empty content on {attempt_model}"
+                        last_detail = {"originalError": f"message content is empty/null", "statusCode": 200, "source": "OpenRouter response parser", "model": attempt_model, "providerResponse": msg_str, "stage": "parse_content"}
+                        print(f"[PIPELINE] Empty message content: {msg_str}")
+                        break
 
-                        parsed = VisionAnalyzer._parse_json(content)
-                        if parsed is None:
-                            last_error = f"unparseable JSON on {attempt_model}"
-                            print(f"[FALLBACK] {attempt_model} returned unparseable JSON, trying next model")
-                            break
+                    print(f"[PIPELINE] Content length: {len(content)} chars")
 
-                        parsed = VisionAnalyzer._fill_missing(parsed)
+                    parsed = VisionAnalyzer._parse_json(content)
+                    if parsed is None:
+                        last_error = f"unparseable JSON on {attempt_model}"
+                        last_detail = {"originalError": "Model returned non-JSON content that could not be parsed", "statusCode": 200, "source": "JSON parser", "model": attempt_model, "providerResponse": content[:300], "stage": "parse_json"}
+                        print(f"[PIPELINE] JSON parsing FAILED. Raw content[:300]={content[:300]}")
+                        break
 
-                        try:
-                            extraction = MarketExtraction(**parsed)
-                        except Exception as e:
-                            last_error = f"validation error on {attempt_model}: {e}"
-                            print(f"[FALLBACK] {attempt_model} validation error: {e}, trying next model")
-                            break
+                    print(f"[PIPELINE] JSON keys: {list(parsed.keys())}")
 
-                        # Map institutional decision back to TradePlan for backward compat
-                        inst = extraction.institutionalDecision
-                        if inst is not None and inst.tradePlan is not None:
-                            tp = inst.tradePlan
-                            tp.riskReward = inst.riskReward or tp.riskReward
-                            tp.probabilityScore = inst.probabilityScore or tp.probabilityScore
-                            if inst.confidence and inst.confidence.total > 0:
-                                tp.confidence = inst.confidence.total
-                            if inst.reasoning:
-                                tp.reasoning = inst.reasoning
-                            extraction.trade = tp
-                        elif inst is not None and inst.bias == "NO_TRADE":
-                            extraction.trade.bias = "NO_TRADE"
-                            extraction.trade.confidence = 0
+                    parsed = VisionAnalyzer._fill_missing(parsed)
 
-                        # Apply code-level safety net
-                        validated_trade = validate_extraction(extraction)
-                        extraction.trade = validated_trade
+                    try:
+                        extraction = MarketExtraction(**parsed)
+                        print(f"[PIPELINE] MarketExtraction created: bias={extraction.trade.bias}, confidence={extraction.trade.confidence}")
+                    except Exception as e:
+                        last_error = f"validation error on {attempt_model}: {e}"
+                        last_detail = {"originalError": str(e), "statusCode": None, "source": "MarketExtraction pydantic validation", "model": attempt_model, "providerResponse": str(parsed)[:300], "stage": "pydantic_validation", "stackTrace": traceback.format_exc()}
+                        print(f"[PIPELINE] MarketExtraction validation FAILED: {e}")
+                        traceback.print_exc()
+                        break
 
-                        # Run 7-layer Signal Validation Engine
+                    # Map institutional decision back to TradePlan for backward compat
+                    inst = extraction.institutionalDecision
+                    if inst is not None and inst.tradePlan is not None:
+                        tp = inst.tradePlan
+                        tp.riskReward = inst.riskReward or tp.riskReward
+                        tp.probabilityScore = inst.probabilityScore or tp.probabilityScore
+                        if inst.confidence and inst.confidence.total > 0:
+                            tp.confidence = inst.confidence.total
+                        if inst.reasoning:
+                            tp.reasoning = inst.reasoning
+                        extraction.trade = tp
+                    elif inst is not None and inst.bias == "NO_TRADE":
+                        extraction.trade.bias = "NO_TRADE"
+                        extraction.trade.confidence = 0
+
+                    print("[PIPELINE] Running validate_extraction()")
+                    validated_trade = validate_extraction(extraction)
+                    extraction.trade = validated_trade
+
+                    print("[PIPELINE] Running SignalValidator.validate()")
+                    try:
                         validation_report = SignalValidator.validate(extraction)
+                    except Exception as e:
+                        last_error = f"validation error on {attempt_model}: {e}"
+                        last_detail = {"originalError": str(e), "statusCode": None, "source": "SignalValidator.validate()", "model": attempt_model, "providerResponse": str(extraction.dict() if hasattr(extraction, 'dict') else extraction)[:300], "stage": "signal_validation", "stackTrace": traceback.format_exc()}
+                        print(f"[PIPELINE] SignalValidator FAILED: {e}")
+                        traceback.print_exc()
+                        break
+                    print(f"[PIPELINE] Validation: finalScore={validation_report.finalScore}, strength={validation_report.signalStrength}")
 
-                        result = VisionAnalysisResponse(
-                            success=True,
-                            extraction=extraction,
-                            validation=validation_report,
-                            raw=content,
-                            model=attempt_model,
-                        )
-                        _cache[ck] = result
-                        return result
+                    result = VisionAnalysisResponse(
+                        success=True,
+                        extraction=extraction,
+                        validation=validation_report,
+                        raw=content,
+                        model=attempt_model,
+                    )
+                    _cache[ck] = result
+                    print(f"[PIPELINE] BACKEND SUCCESS: returning result for {attempt_model}")
+                    return result
 
                 except httpx.TimeoutException:
                     last_error = f"timeout on {attempt_model}"
-                    print(f"[FALLBACK] {attempt_model} timed out, trying next model")
+                    last_detail = {"originalError": f"httpx.TimeoutException after 30s", "statusCode": None, "source": "httpx request", "model": attempt_model, "providerResponse": "", "stage": "openrouter_request_timeout"}
+                    print(f"[PIPELINE] TIMEOUT on {attempt_model} (30s), trying next model")
                     break
                 except Exception as e:
                     last_error = str(e)
-                    print(f"[FALLBACK] {attempt_model} error: {e}, trying next model")
+                    last_detail = {"originalError": f"{type(e).__name__}: {e}", "statusCode": None, "source": f"unhandled exception in {attempt_model} loop", "model": attempt_model, "providerResponse": "", "stage": "unhandled_exception", "stackTrace": traceback.format_exc()}
+                    print(f"[PIPELINE] ERROR on {attempt_model}: {type(e).__name__}: {e}")
+                    traceback.print_exc()
                     break
 
-        friendly = "Analysis temporarily unavailable. Please retry shortly."
+        print(f"[PIPELINE] All models exhausted. last_error={last_error}")
         return VisionAnalysisResponse(
             success=False,
-            error=friendly,
+            error=last_error or "Analysis failed with no specific error",
+            detail=last_detail,
             model=model,
         )
 

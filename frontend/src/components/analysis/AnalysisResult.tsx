@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useMemo, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { GlassCard } from '@/components/ui/GlassCard';
 import {
@@ -18,6 +19,12 @@ interface AnalysisResultProps {
   model: string;
 }
 
+const BIAS_CONFIG: Record<string, { icon: any; color: string; bg: string; border: string; label: string }> = {
+  LONG: { icon: TrendingUp, color: 'text-aurora-500', bg: 'bg-aurora-500/10', border: 'border-aurora-500/15', label: 'LONG' },
+  SHORT: { icon: TrendingDown, color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/15', label: 'SHORT' },
+  NO_TRADE: { icon: Minus, color: 'text-ember-400', bg: 'bg-ember-500/10', border: 'border-ember-500/20', label: 'NO TRADE' },
+};
+
 function Tag({ children, color }: { children: React.ReactNode; color?: string }) {
   return (
     <span className={cn(
@@ -31,18 +38,36 @@ function Tag({ children, color }: { children: React.ReactNode; color?: string })
   );
 }
 
-export function AnalysisResult({ extraction, validation, model }: AnalysisResultProps) {
+const ScoringBars = memo(function ScoringBars({ scoring }: { scoring: { marketStructure: number; liquidity: number; fvg: number; orderBlocks: number; volume: number; momentum: number; total: number } }) {
+  return (
+    <div className="space-y-2">
+      {[
+        { label: 'Market Structure', value: scoring.marketStructure, weight: '25%', color: 'bg-cyber-400' },
+        { label: 'Liquidity', value: scoring.liquidity, weight: '20%', color: 'bg-aurora-400' },
+        { label: 'FVG', value: scoring.fvg, weight: '15%', color: 'bg-amber-400' },
+        { label: 'Order Blocks', value: scoring.orderBlocks, weight: '15%', color: 'bg-blue-400' },
+        { label: 'Volume', value: scoring.volume, weight: '15%', color: 'bg-purple-400' },
+        { label: 'Momentum', value: scoring.momentum, weight: '10%', color: 'bg-pink-400' },
+      ].map((item) => (
+        <div key={item.label} className="flex items-center gap-3">
+          <span className="text-[10px] text-[var(--color-text-muted)] w-28 shrink-0">{item.label} <span className="text-[9px]">({item.weight})</span></span>
+          <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
+            <div className={cn('h-full rounded-full', item.color)} style={{ width: `${item.value}%` }} />
+          </div>
+          <span className="text-[10px] font-mono text-[var(--color-text-muted)] w-8 text-right">{item.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+});
+
+export const AnalysisResult = memo(function AnalysisResult({ extraction, validation, model }: AnalysisResultProps) {
   const { chartDetection: cd, marketStructure: ms, liquidity: liq, smc, fvgs, orderBlocks: obs, premiumDiscount: pd, volume: vol, momentum: mom, trade, scoring } = extraction;
 
-  const biasConfig: Record<string, { icon: any; color: string; bg: string; border: string; label: string }> = {
-    LONG: { icon: TrendingUp, color: 'text-aurora-500', bg: 'bg-aurora-500/10', border: 'border-aurora-500/15', label: 'LONG' },
-    SHORT: { icon: TrendingDown, color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/15', label: 'SHORT' },
-    NO_TRADE: { icon: Minus, color: 'text-ember-400', bg: 'bg-ember-500/10', border: 'border-ember-500/20', label: 'NO TRADE' },
-  };
-  const cfg = biasConfig[trade.bias] || biasConfig.NO_TRADE;
+  const cfg = BIAS_CONFIG[trade.bias] || BIAS_CONFIG.NO_TRADE;
   const VerdictIcon = cfg.icon;
 
-  const confidenceColor = trade.confidence >= 85 ? 'bg-aurora-400' : trade.confidence >= 70 ? 'bg-cyber-400' : 'bg-ember-400';
+  const confidenceColor = useMemo(() => trade.confidence >= 85 ? 'bg-aurora-400' : trade.confidence >= 70 ? 'bg-cyber-400' : 'bg-ember-400', [trade.confidence]);
 
   const hasInstitutional = extraction.institutionalDecision && extraction.institutionalDecision.marketState;
 
@@ -213,7 +238,7 @@ export function AnalysisResult({ extraction, validation, model }: AnalysisResult
             <h3 className="text-sm font-semibold">Premium / Discount</h3>
             <Tag color={pd.currentPosition === 'discount' ? 'green' : pd.currentPosition === 'premium' ? 'red' : 'amber'}>{pd.currentPosition}</Tag>
           </div>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-[var(--color-text-muted)]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-[var(--color-text-muted)]">
             {pd.dealingRange && <div><span className="text-[10px] font-medium">Range: </span>{pd.dealingRange}</div>}
             {pd.equilibrium && <div><span className="text-[10px] font-medium">EQ: </span>{pd.equilibrium}</div>}
             {pd.premiumZone && <div><span className="text-[10px] font-medium">Premium: </span>{pd.premiumZone}</div>}
@@ -260,7 +285,7 @@ export function AnalysisResult({ extraction, validation, model }: AnalysisResult
         <ValidationReportCard report={validation} />
       )}
 
-      {/* STEP 12: Scoring Breakdown */}
+      {/* Scoring Breakdown */}
       {scoring.total > 0 && (
         <GlassCard className="p-4">
           <div className="flex items-center gap-2 mb-3">
@@ -268,24 +293,7 @@ export function AnalysisResult({ extraction, validation, model }: AnalysisResult
             <h3 className="text-sm font-semibold">Confidence Breakdown</h3>
             <span className="text-sm font-bold font-mono text-aurora-400">{scoring.total}/100</span>
           </div>
-          <div className="space-y-2">
-            {[
-              { label: 'Market Structure', value: scoring.marketStructure, weight: '25%', color: 'bg-cyber-400' },
-              { label: 'Liquidity', value: scoring.liquidity, weight: '20%', color: 'bg-aurora-400' },
-              { label: 'FVG', value: scoring.fvg, weight: '15%', color: 'bg-amber-400' },
-              { label: 'Order Blocks', value: scoring.orderBlocks, weight: '15%', color: 'bg-blue-400' },
-              { label: 'Volume', value: scoring.volume, weight: '15%', color: 'bg-purple-400' },
-              { label: 'Momentum', value: scoring.momentum, weight: '10%', color: 'bg-pink-400' },
-            ].map((item) => (
-              <div key={item.label} className="flex items-center gap-3">
-                <span className="text-[10px] text-[var(--color-text-muted)] w-28 shrink-0">{item.label} <span className="text-[9px]">({item.weight})</span></span>
-                <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
-                  <div className={cn('h-full rounded-full', item.color)} style={{ width: `${item.value}%` }} />
-                </div>
-                <span className="text-[10px] font-mono text-[var(--color-text-muted)] w-8 text-right">{item.value}</span>
-              </div>
-            ))}
-          </div>
+          <ScoringBars scoring={scoring} />
         </GlassCard>
       )}
 
@@ -298,12 +306,12 @@ export function AnalysisResult({ extraction, validation, model }: AnalysisResult
             {trade.riskReward && <Tag color="green">RR {trade.riskReward}</Tag>}
             {trade.probabilityScore && <Tag color="blue">P: {trade.probabilityScore}%</Tag>}
           </div>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-            <div><span className="text-xs text-[var(--color-text-muted)]">Entry</span><p className="font-mono text-sm font-medium">{trade.entry}</p></div>
-            <div><span className="text-xs text-[var(--color-text-muted)]">Stop Loss</span><p className="font-mono text-sm font-medium text-red-400">{trade.stop}</p></div>
-            {trade.tp1 && <div><span className="text-xs text-[var(--color-text-muted)]">TP1</span><p className="font-mono text-sm font-medium text-aurora-400">{trade.tp1}</p></div>}
-            {trade.tp2 && <div><span className="text-xs text-[var(--color-text-muted)]">TP2</span><p className="font-mono text-sm font-medium text-aurora-400">{trade.tp2}</p></div>}
-            {trade.tp3 && <div><span className="text-xs text-[var(--color-text-muted)]">TP3</span><p className="font-mono text-sm font-medium text-aurora-400">{trade.tp3}</p></div>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+            <div className="min-w-0"><span className="text-xs text-[var(--color-text-muted)]">Entry</span><p className="font-mono text-sm font-medium break-all">{trade.entry}</p></div>
+            <div className="min-w-0"><span className="text-xs text-[var(--color-text-muted)]">Stop Loss</span><p className="font-mono text-sm font-medium text-red-400 break-all">{trade.stop}</p></div>
+            {trade.tp1 && <div className="min-w-0"><span className="text-xs text-[var(--color-text-muted)]">TP1</span><p className="font-mono text-sm font-medium text-aurora-400 break-all">{trade.tp1}</p></div>}
+            {trade.tp2 && <div className="min-w-0"><span className="text-xs text-[var(--color-text-muted)]">TP2</span><p className="font-mono text-sm font-medium text-aurora-400 break-all">{trade.tp2}</p></div>}
+            {trade.tp3 && <div className="min-w-0"><span className="text-xs text-[var(--color-text-muted)]">TP3</span><p className="font-mono text-sm font-medium text-aurora-400 break-all">{trade.tp3}</p></div>}
           </div>
         </GlassCard>
       )}
@@ -311,4 +319,4 @@ export function AnalysisResult({ extraction, validation, model }: AnalysisResult
       )}
     </motion.div>
   );
-}
+});

@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { GlassCard } from '@/components/ui/GlassCard';
 import {
@@ -30,7 +31,7 @@ const STRENGTH_CONFIG: Record<string, { label: string; color: string; bg: string
   NO_TRADE: { label: 'NO TRADE', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/15' },
 };
 
-export function ValidationReportCard({ report }: Props) {
+export const ValidationReportCard = memo(function ValidationReportCard({ report }: Props) {
   const cfg = STRENGTH_CONFIG[report.signalStrength] || STRENGTH_CONFIG.NO_TRADE;
   const PassIcon = report.signalStrength === 'STRONG_SIGNAL' ? CheckCircle : report.signalStrength === 'VALID_SIGNAL' ? Shield : AlertTriangle;
 
@@ -102,4 +103,4 @@ export function ValidationReportCard({ report }: Props) {
       </div>
     </motion.div>
   );
-}
+});

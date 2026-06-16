@@ -9,6 +9,39 @@ export type UploadSource = 'drag' | 'click' | 'paste' | 'camera';
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const MAX_SIZE = 20 * 1024 * 1024;
+const MAX_IMAGE_WIDTH = 1280;
+const JPEG_QUALITY = 0.8;
+
+function compressImage(file: File, dataUrl: string): Promise<{ file: File; preview: string; width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let { width, height } = img;
+      if (width > MAX_IMAGE_WIDTH) {
+        height = Math.round(height * (MAX_IMAGE_WIDTH / width));
+        width = MAX_IMAGE_WIDTH;
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { resolve({ file, preview: dataUrl, width, height }); return; }
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, width, height);
+      const mimeType = file.type === 'image/png' ? 'image/jpeg' : file.type;
+      const compressedPreview = canvas.toDataURL(mimeType, JPEG_QUALITY);
+      canvas.toBlob((blob) => {
+        if (!blob) { resolve({ file, preview: dataUrl, width, height }); return; }
+        const newName = file.name.replace(/\.png$/i, '.jpg');
+        const compressedFile = new File([blob], newName, { type: mimeType });
+        resolve({ file: compressedFile, preview: compressedPreview, width, height });
+      }, mimeType, JPEG_QUALITY);
+    };
+    img.onerror = () => reject(new Error('Failed to load image'));
+    img.src = dataUrl;
+  });
+}
 
 interface ChartUploaderProps {
   onImageReady: (file: File, preview: string, resolution: { width: number; height: number }, source: UploadSource) => void;
@@ -36,16 +69,23 @@ export function ChartUploader({ onImageReady, onClear, disabled }: ChartUploader
     }
     setFileName(file.name);
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const dataUrl = e.target?.result as string;
-      const img = new Image();
-      img.onload = () => {
-        const res = { width: img.naturalWidth, height: img.naturalHeight };
-        setResolution(res);
-        setPreview(dataUrl);
-        onImageReady(file, dataUrl, res, source);
-      };
-      img.src = dataUrl;
+      try {
+        const compressed = await compressImage(file, dataUrl);
+        setResolution({ width: compressed.width, height: compressed.height });
+        setPreview(compressed.preview);
+        onImageReady(compressed.file, compressed.preview, { width: compressed.width, height: compressed.height }, source);
+      } catch {
+        const img = new Image();
+        img.onload = () => {
+          const res = { width: img.naturalWidth, height: img.naturalHeight };
+          setResolution(res);
+          setPreview(dataUrl);
+          onImageReady(file, dataUrl, res, source);
+        };
+        img.src = dataUrl;
+      }
     };
     reader.readAsDataURL(file);
   }, [onImageReady]);

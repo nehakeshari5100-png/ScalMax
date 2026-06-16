@@ -15,7 +15,7 @@ MAX_FILE_SIZE = 10 * 1024 * 1024
 async def analyze_chart(
     file: UploadFile = File(...),
     api_key: str = Form(...),
-    model: str = Form("nex-agi/nex-n2-pro:free"),
+    model: str = Form("google/gemma-4-31b-it:free"),
     prompt: str = Form(""),
 ):
     if not file.filename:
@@ -73,7 +73,7 @@ async def list_vision_models():
                 "free": True,
             },
             {
-                "id": "nex-agi/nex-n2-pro:free",
+                "id": "google/gemma-4-31b-it:free",
                 "name": "Nex AGI Nex-N2-Pro (free)",
                 "description": "Free vision MoE model",
                 "default": True,
