@@ -118,6 +118,49 @@ export interface MarketExtraction {
   momentum: MomentumAnalysis
   trade: TradePlan
   scoring: ScoringBreakdown
+  institutionalDecision: InstitutionalDecision | null
+}
+
+export interface ConfidenceScores {
+  structure: number
+  liquidity: number
+  smc: number
+  volume: number
+  momentum: number
+  rr: number
+  total: number
+}
+
+export interface ConflictReport {
+  bullishFactors: string[]
+  bearishFactors: string[]
+  highConflict: boolean
+}
+
+export interface LiquidityTarget {
+  nearest: string
+  major: string
+  final: string
+}
+
+export interface ExecutionPlan {
+  entryTrigger: string
+  invalidation: string
+  targetLogic: string
+}
+
+export interface InstitutionalDecision {
+  marketState: string
+  bias: string
+  tradeGrade: string
+  confidence: ConfidenceScores
+  tradePlan: TradePlan
+  riskReward: string
+  probabilityScore: string
+  conflictReport: ConflictReport
+  liquidityTarget: LiquidityTarget
+  executionPlan: ExecutionPlan
+  reasoning: string[]
 }
 
 export interface ValidationLayer {
@@ -143,4 +186,5 @@ export interface VisionAnalysisResponse {
   raw: string | null
   model: string
   error: string | null
+  engine: string
 }

@@ -11,7 +11,13 @@ from PIL import Image
 
 from services.vision.models import (
     MarketExtraction,
-    MASTER_PROMPT,
+    InstitutionalDecision,
+    ConfidenceScores,
+    ConflictReport,
+    LiquidityTarget,
+    ExecutionPlan,
+    TradePlan,
+    INSTITUTIONAL_PROMPT,
     VisionAnalysisResponse,
 )
 from services.vision.scoring import validate_extraction
@@ -84,14 +90,14 @@ class VisionAnalyzer:
         if cached is not None:
             return cached
 
-        system_prompt = prompt if prompt else MASTER_PROMPT
+        system_prompt = prompt if prompt else INSTITUTIONAL_PROMPT
 
         messages = [
             {"role": "system", "content": system_prompt},
             {
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": "Analyze this chart using the 12-step master extraction engine. Return only the JSON."},
+                    {"type": "text", "text": "Analyze this chart using the 10-step institutional trade decision engine. Return only the JSON."},
                     {"type": "image_url", "image_url": {"url": image_url}},
                 ],
             },
@@ -102,10 +108,10 @@ class VisionAnalyzer:
             "messages": messages,
             "temperature": 0.2,
             "top_p": 0.9,
-            "max_tokens": 2000,
+            "max_tokens": 2500,
         }
 
-        print(f"[AUDIT] model={model}, max_tokens=2000, temperature=0.2, prompt_len={len(system_prompt)}")
+        print(f"[AUDIT] model={model}, max_tokens=2500, temperature=0.2, prompt_len={len(system_prompt)}")
 
         models_to_try = [model] + [m for m in FALLBACK_MODELS if m != model]
         last_error = None
@@ -169,6 +175,21 @@ class VisionAnalyzer:
                             last_error = f"validation error on {attempt_model}: {e}"
                             print(f"[FALLBACK] {attempt_model} validation error: {e}, trying next model")
                             break
+
+                        # Map institutional decision back to TradePlan for backward compat
+                        inst = extraction.institutionalDecision
+                        if inst is not None and inst.tradePlan is not None:
+                            tp = inst.tradePlan
+                            tp.riskReward = inst.riskReward or tp.riskReward
+                            tp.probabilityScore = inst.probabilityScore or tp.probabilityScore
+                            if inst.confidence and inst.confidence.total > 0:
+                                tp.confidence = inst.confidence.total
+                            if inst.reasoning:
+                                tp.reasoning = inst.reasoning
+                            extraction.trade = tp
+                        elif inst is not None and inst.bias == "NO_TRADE":
+                            extraction.trade.bias = "NO_TRADE"
+                            extraction.trade.confidence = 0
 
                         # Apply code-level safety net
                         validated_trade = validate_extraction(extraction)
@@ -279,4 +300,30 @@ class VisionAnalyzer:
                 parsed[section] = []
             for k, v in defaults.items():
                 parsed[section].setdefault(k, v)
+
+        # Fill institutionalDecision defaults if present
+        inst = parsed.get("institutionalDecision")
+        if inst is not None and isinstance(inst, dict):
+            inst.setdefault("marketState", "")
+            inst.setdefault("bias", "NO_TRADE")
+            inst.setdefault("tradeGrade", "")
+            inst.setdefault("riskReward", "")
+            inst.setdefault("probabilityScore", "")
+            inst.setdefault("reasoning", [])
+            inst_confidence = inst.get("confidence")
+            if inst_confidence is None or not isinstance(inst_confidence, dict):
+                inst["confidence"] = {"structure": 0, "liquidity": 0, "smc": 0, "volume": 0, "momentum": 0, "rr": 0, "total": 0}
+            inst_trade = inst.get("tradePlan")
+            if inst_trade is None or not isinstance(inst_trade, dict):
+                inst["tradePlan"] = {"bias": "NO_TRADE", "confidence": 0, "entry": "", "stop": "", "tp1": "", "tp2": "", "tp3": "", "riskReward": "", "probabilityScore": "", "reasoning": []}
+            inst_conflict = inst.get("conflictReport")
+            if inst_conflict is None or not isinstance(inst_conflict, dict):
+                inst["conflictReport"] = {"bullishFactors": [], "bearishFactors": [], "highConflict": False}
+            inst_liq = inst.get("liquidityTarget")
+            if inst_liq is None or not isinstance(inst_liq, dict):
+                inst["liquidityTarget"] = {"nearest": "", "major": "", "final": ""}
+            inst_exec = inst.get("executionPlan")
+            if inst_exec is None or not isinstance(inst_exec, dict):
+                inst["executionPlan"] = {"entryTrigger": "", "invalidation": "", "targetLogic": ""}
+
         return parsed

@@ -32,7 +32,7 @@ export function TradePlanPanel({ className, analysis }: TradePlanPanelProps) {
       setTp2(extraction.tp2);
       setTp3(extraction.tp3);
     }
-  }, [extraction?.entry, extraction?.sl, extraction?.tp1, extraction?.tp2, extraction?.tp3]);
+  }, [extraction]);
 
   const entryN = parseFloat(entry) || 0;
   const slN = parseFloat(sl) || 0;

@@ -140,6 +140,63 @@ class ValidationReport(BaseModel):
     signalStrength: str
 
 
+class ConfidenceScores(BaseModel):
+    structure: int = 0
+    liquidity: int = 0
+    smc: int = 0
+    volume: int = 0
+    momentum: int = 0
+    rr: int = 0
+    total: int = 0
+
+
+class ConflictReport(BaseModel):
+    bullishFactors: List[str] = Field(default_factory=list)
+    bearishFactors: List[str] = Field(default_factory=list)
+    highConflict: bool = False
+
+
+class LiquidityTarget(BaseModel):
+    nearest: str = ""
+    major: str = ""
+    final: str = ""
+
+
+class ExecutionPlan(BaseModel):
+    entryTrigger: str = ""
+    invalidation: str = ""
+    targetLogic: str = ""
+
+
+class InstitutionalDecision(BaseModel):
+    marketState: str = ""
+    bias: str = "NO_TRADE"
+    tradeGrade: str = ""
+    confidence: ConfidenceScores = Field(default_factory=ConfidenceScores)
+    tradePlan: TradePlan = Field(default_factory=TradePlan)
+    riskReward: str = ""
+    probabilityScore: str = ""
+    conflictReport: ConflictReport = Field(default_factory=ConflictReport)
+    liquidityTarget: LiquidityTarget = Field(default_factory=LiquidityTarget)
+    executionPlan: ExecutionPlan = Field(default_factory=ExecutionPlan)
+    reasoning: List[str] = Field(default_factory=list)
+
+
+class MarketExtraction(BaseModel):
+    chartDetection: ChartDetection = Field(default_factory=ChartDetection)
+    marketStructure: MarketStructure = Field(default_factory=MarketStructure)
+    liquidity: LiquidityAnalysis = Field(default_factory=LiquidityAnalysis)
+    smc: SMCData = Field(default_factory=SMCData)
+    fvgs: List[FVG] = Field(default_factory=list)
+    orderBlocks: List[OrderBlock] = Field(default_factory=list)
+    premiumDiscount: PremiumDiscount = Field(default_factory=PremiumDiscount)
+    volume: VolumeAnalysis = Field(default_factory=VolumeAnalysis)
+    momentum: MomentumAnalysis = Field(default_factory=MomentumAnalysis)
+    trade: TradePlan = Field(default_factory=TradePlan)
+    scoring: ScoringBreakdown = Field(default_factory=ScoringBreakdown)
+    institutionalDecision: Optional[InstitutionalDecision] = None
+
+
 class VisionAnalysisResponse(BaseModel):
     success: bool
     extraction: Optional[MarketExtraction] = None
@@ -147,126 +204,86 @@ class VisionAnalysisResponse(BaseModel):
     raw: Optional[str] = None
     model: str = ""
     error: Optional[str] = None
+    engine: str = "institutional"
 
 
-MASTER_PROMPT = """You are a professional scalping chart analyst. Follow these 12 steps in order. Never skip steps. Never generate a trade before completing all extraction steps.
+INSTITUTIONAL_PROMPT = """You are an institutional-grade scalper. Do not predict. React to evidence. Follow these 10 steps in strict order.
 
-STEP 1 — CHART DETECTION
-Identify from the chart image:
-- exchange: Exchange name if visible (e.g. Binance, Bybit, TradingView). "" if not visible.
-- symbol: Trading pair or stock symbol (e.g. ETHUSDT, BTCUSD, AAPL). Look at top-left/right labels.
-- timeframe: Timeframe shown (e.g. 1m, 5m, 15m, 30m, 1h, 4h, 1D).
-- currentPrice: Most recent visible price. Be precise.
-- sessionType: "asia", "london", "new_york", "overlap", or "" if unclear.
-- chartType: "candlestick", "heikin_ashi", "line", "bar", or "renko".
-For each detection, return confidence 0-100.
+STEP 1 — MARKET STATE
+Determine market state. Choose exactly one:
+- TRENDING: price making clear HH+HL or LH+LL
+- RANGING: price oscillating between clear levels, no direction
+- BREAKOUT: price breaking a key level with conviction
+- RETEST: price returning to a broken level to confirm
+- LIQUIDITY_SWEEP: price swept a stop cluster then reversed
+- REVERSAL: clear shift in structure character
 
-STEP 2 — MARKET STRUCTURE
-Examine 3+ recent swing points. Determine:
-- higherHighs: Are swing highs getting clearly higher? true/false
-- higherLows: Are swing lows getting clearly higher? true/false
-- lowerHighs: Are swing highs getting clearly lower? true/false
-- lowerLows: Are swing lows getting clearly lower? true/false
-- classification: "bullish_trend" (HH+HL), "bearish_trend" (LH+LL), "range" (no clear direction), "compression" (tightening), "expansion" (widening), "reversal_candidate" (possible trend change)
-- swingHighs: List specific swing high prices
-- swingLows: List specific swing low prices
+STEP 2 — DIRECTIONAL BIAS
+Choose exactly one:
+- STRONG_LONG: multiple confluent bullish factors
+- LONG: bullish bias with minor conflicting signals
+- NEUTRAL: no clear directional edge
+- SHORT: bearish bias with minor conflicting signals
+- STRONG_SHORT: multiple confluent bearish factors
+HARD RULE: If market state is RANGING, bias MUST be NEUTRAL.
 
-STEP 3 — LIQUIDITY ANALYSIS
-- buySideLiquidity: Where is buy-side liquidity? (above highs, specific price levels)
-- sellSideLiquidity: Where is sell-side liquidity? (below lows, specific price levels)
-- equalHighs: Are there two+ swing highs at the same price?
-- equalLows: Are there two+ swing lows at the same price?
-- stopClusters: Where are stop loss clusters likely?
-- liquidityPools: Where are major liquidity pools?
-- internalLiquidity: Liquidity within the range?
-- externalLiquidity: Liquidity outside the range?
-- swept: Has major liquidity already been swept? true/false
-- sweepType: "bullish" (swept below lows then reversed), "bearish" (swept above highs then reversed), "none"
-
-STEP 4 — SMART MONEY CONCEPTS
-- bos: Break of Structure — describe the exact candle/level where structure broke
-- choch: Change of Character — describe where trend character changed
-- mss: Market Structure Shift — describe the shift point
-- bosConfidence: 0-100
-- chochConfidence: 0-100
-- mssConfidence: 0-100
-
-STEP 5 — FAIR VALUE GAPS
-For each visible FVG, return:
-- type: "bullish" or "bearish"
-- top: Top price of the gap
-- midpoint: Midpoint price
-- bottom: Bottom price
-- status: "filled", "partially_filled", or "untouched"
-- strength: 0-100
-Rank by strength (strongest first).
-
-STEP 6 — ORDER BLOCKS
-For each visible order block, return:
-- type: "bullish" or "bearish"
-- zone: Price zone of the order block
-- status: "mitigated", "unmitigated", "fresh", or "invalidated"
-
-STEP 7 — PREMIUM / DISCOUNT
-- dealingRange: Current price range (low-high)
-- equilibrium: Midpoint of the range (50% retracement)
-- premiumZone: Upper half of the range (50-100%)
-- discountZone: Lower half of the range (0-50%)
-- currentPosition: "premium" (price in upper half), "equilibrium" (at midpoint), "discount" (in lower half)
-
-STEP 8 — VOLUME ANALYSIS
-- spikes: Describe any volume spikes and their location
-- absorption: Is price absorbing at a level?
-- exhaustion: Signs of volume exhaustion?
-- breakoutVolume: Volume on breakouts — high or low?
-- weakVolume: Areas of weak volume?
-- climaxVolume: Climax volume patterns?
-
-STEP 9 — MOMENTUM ANALYSIS
-- impulsive: Describe impulsive moves and direction
-- corrective: Describe corrective/retrace moves
-- consolidation: Describe consolidation zones
-- compression: Is price compressing (tightening range)?
-- score: 0-100 momentum strength score
-
-STEP 10 — TRADE FILTER
-DO NOT FORCE A TRADE.
-Return bias: "LONG", "SHORT", or "NO_TRADE"
-NO_TRADE if: confidence < 70, structure unclear, liquidity target unclear, or risk reward below 1:2.
-
-STEP 11 — TRADE PLAN
-Only if bias is LONG or SHORT AND confidence >= 70:
+STEP 3 — TRADE PLAN
+Only if bias is LONG, STRONG_LONG, SHORT, or STRONG_SHORT:
 - entry: Specific entry price or zone
-- stop: Stop loss price
-- tp1: First take profit
+- stop: Stop loss price (must be below entry for LONG, above for SHORT)
+- tp1: First take profit (minimum 1:2 risk-reward)
 - tp2: Second take profit
 - tp3: Third take profit
+
+STEP 4 — RISK METRICS
 - riskReward: Risk-to-reward ratio (e.g. "1:2.5")
-- probabilityScore: Probability of success 0-100
+- probabilityScore: Estimated probability of success 0-100
 
-STEP 12 — FINAL SCORING
-Calculate weighted confidence:
-- marketStructure: 25% weight — clarity of HH/HL/LH/LL and classification
-- liquidity: 20% weight — clarity of liquidity targets and sweep status
-- fvg: 15% weight — presence and strength of FVGs
-- orderBlocks: 15% weight — presence and freshness of order blocks
-- volume: 15% weight — volume confirmation
-- momentum: 10% weight — momentum strength
-Each component score 0-100. total = weighted average.
-Return total as the final confidence.
+STEP 5 — TRADE QUALITY GRADE
+Grade the trade:
+- A+: all 7 validation layers pass, RR >= 1:3, confidence >= 85
+- A: 6+ layers pass, RR >= 1:2, confidence >= 75
+- B: 5+ layers pass, RR >= 1:2, confidence >= 65
+- C: 4+ layers pass, RR >= 1:1.5
+- D: weak evidence, reject this trade
+HARD RULE: If grade is D, the final decision MUST be NO_TRADE.
 
-REASONING:
-Provide maximum 5 concise bullet points explaining the analysis. Focus on the key evidence for the bias.
+STEP 6 — CONFLICT DETECTION
+List all bullish factors and all bearish factors visible on the chart.
+If the number of bullish factors and bearish factors are within 1 of each other, set highConflict to true.
+If highConflict is true, bias MUST be NEUTRAL.
 
-HARD RULES:
-- Never force LONG or SHORT. If unclear, return NO_TRADE.
-- Never set bias if structure is ranging.
-- Never set bias if confidence < 70.
-- HH+HL = bullish. LH+LL = bearish. Mixed = range or NO_TRADE.
-- If liquidity targets are unclear, NO_TRADE.
-- If risk reward < 1:2, NO_TRADE.
+STEP 7 — LIQUIDITY TARGETS
+- nearest: Closest liquidity pool to current price
+- major: The most significant liquidity zone
+- final: The ultimate liquidity target that would complete the move
 
-Return ONLY valid JSON. No markdown fences. The JSON must have this exact structure:
+STEP 8 — EXECUTION PLAN
+If bias is LONG or STRONG_LONG:
+- entryTrigger: What specific price action confirms entry
+- invalidation: Exact level that invalidates the trade
+- targetLogic: Why each TP level was chosen
+If bias is SHORT or STRONG_SHORT:
+- entryTrigger: What specific price action confirms entry
+- invalidation: Exact level that invalidates the trade
+- targetLogic: Why each TP level was chosen
+If NEUTRAL: explain why no trade.
+
+STEP 9 — FINAL DECISION
+Return exactly one: "LONG", "SHORT", or "NO_TRADE"
+NEVER return STRONG_LONG or STRONG_SHORT here. Use the bias field for direction strength.
+NO_TRADE if: confidence < 70, grade is D, highConflict is true, or bias is NEUTRAL.
+
+STEP 10 — CONFIDENCE ENGINE
+Score each component 0-100. Total is weighted average:
+- structure: 25% weight — market state clarity and trend alignment with bias
+- liquidity: 20% weight — liquidity target identification and sweep status
+- smc: 20% weight — BOS/CHOCH/MSS confirmation strength
+- volume: 15% weight — volume confirmation on key moves
+- momentum: 10% weight — momentum strength and impulse quality
+- rr: 10% weight — risk-reward ratio quality
+
+Return ONLY valid JSON. No markdown fences. Exact structure:
 
 {
   "chartDetection": {
@@ -340,16 +357,47 @@ Return ONLY valid JSON. No markdown fences. The JSON must have this exact struct
     "compression": "Range tightening near resistance",
     "score": 75
   },
-  "trade": {
-    "bias": "LONG",
-    "confidence": 78,
-    "entry": "4260-4280",
-    "stop": "4180",
-    "tp1": "4350",
-    "tp2": "4400",
-    "tp3": "4450",
+  "institutionalDecision": {
+    "marketState": "TRENDING",
+    "bias": "STRONG_LONG",
+    "tradeGrade": "A",
+    "confidence": {
+      "structure": 85,
+      "liquidity": 75,
+      "smc": 80,
+      "volume": 70,
+      "momentum": 65,
+      "rr": 80
+    },
+    "tradePlan": {
+      "bias": "LONG",
+      "confidence": 78,
+      "entry": "4260-4280",
+      "stop": "4180",
+      "tp1": "4350",
+      "tp2": "4400",
+      "tp3": "4450",
+      "riskReward": "1:2.5",
+      "probabilityScore": "72",
+      "reasoning": []
+    },
     "riskReward": "1:2.5",
-    "probabilityScore": "70",
+    "probabilityScore": "72",
+    "conflictReport": {
+      "bullishFactors": ["HH+HL structure", "Price in discount zone", "Unmitigated bullish OB", "Bullish FVG at 4260-4280", "High volume on breakout"],
+      "bearishFactors": ["Resistance at 4400"],
+      "highConflict": false
+    },
+    "liquidityTarget": {
+      "nearest": "Buy-side above 4400",
+      "major": "Weekly high at 4500",
+      "final": "4500+ zone"
+    },
+    "executionPlan": {
+      "entryTrigger": "Reaction at 4260-4280 with bullish confirmation candle",
+      "invalidation": "Close below 4180",
+      "targetLogic": "TP1 at 4350 (recent high), TP2 at 4400 (liquidity grab), TP3 at 4450 (extension)"
+    },
     "reasoning": [
       "Bullish structure with clear HH+HL pattern over 12 candles",
       "Price in discount zone at 4260-4280 with equilibrium at 4300",
@@ -357,15 +405,6 @@ Return ONLY valid JSON. No markdown fences. The JSON must have this exact struct
       "Untouched bullish FVG at 4260-4280 acting as magnet for price",
       "High volume breakout above 4350 confirms bullish momentum"
     ]
-  },
-  "scoring": {
-    "marketStructure": 85,
-    "liquidity": 75,
-    "fvg": 70,
-    "orderBlocks": 75,
-    "volume": 80,
-    "momentum": 75,
-    "total": 78
   }
 }
 """  # noqa: E501

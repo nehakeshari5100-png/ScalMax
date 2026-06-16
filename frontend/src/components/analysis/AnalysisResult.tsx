@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import type { MarketExtraction, ValidationReport } from '@/types/vision';
 import { ValidationReportCard } from '@/components/analysis/ValidationReport';
+import { InstitutionalResult } from '@/components/analysis/InstitutionalResult';
 
 interface AnalysisResultProps {
   extraction: MarketExtraction;
@@ -43,8 +44,14 @@ export function AnalysisResult({ extraction, validation, model }: AnalysisResult
 
   const confidenceColor = trade.confidence >= 85 ? 'bg-aurora-400' : trade.confidence >= 70 ? 'bg-cyber-400' : 'bg-ember-400';
 
+  const hasInstitutional = extraction.institutionalDecision && extraction.institutionalDecision.marketState;
+
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+      {hasInstitutional ? (
+        <InstitutionalResult extraction={extraction} inst={extraction.institutionalDecision!} model={model} />
+      ) : (
+        <>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -299,6 +306,8 @@ export function AnalysisResult({ extraction, validation, model }: AnalysisResult
             {trade.tp3 && <div><span className="text-xs text-[var(--color-text-muted)]">TP3</span><p className="font-mono text-sm font-medium text-aurora-400">{trade.tp3}</p></div>}
           </div>
         </GlassCard>
+      )}
+        </>
       )}
     </motion.div>
   );
