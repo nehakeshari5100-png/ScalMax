@@ -208,84 +208,18 @@ class VisionAnalysisResponse(BaseModel):
     engine: str = "institutional"
 
 
-INSTITUTIONAL_PROMPT = """You are an institutional-grade scalper. Do not predict. React to evidence. Follow these 10 steps in strict order.
+INSTITUTIONAL_PROMPT = """You are an institutional scalper. React to evidence only. Return ONLY valid JSON. No explanations.
 
-STEP 1 — MARKET STATE
-Determine market state. Choose exactly one:
-- TRENDING: price making clear HH+HL or LH+LL
-- RANGING: price oscillating between clear levels, no direction
-- BREAKOUT: price breaking a key level with conviction
-- RETEST: price returning to a broken level to confirm
-- LIQUIDITY_SWEEP: price swept a stop cluster then reversed
-- REVERSAL: clear shift in structure character
+RULES:
+- If RANGING → bias=NEUTRAL
+- If grade=D → NO_TRADE
+- If highConflict → bias=NEUTRAL
+- If confidence<70 → NO_TRADE
+- Final decision: LONG/SHORT/NO_TRADE only
 
-STEP 2 — DIRECTIONAL BIAS
-Choose exactly one:
-- STRONG_LONG: multiple confluent bullish factors
-- LONG: bullish bias with minor conflicting signals
-- NEUTRAL: no clear directional edge
-- SHORT: bearish bias with minor conflicting signals
-- STRONG_SHORT: multiple confluent bearish factors
-HARD RULE: If market state is RANGING, bias MUST be NEUTRAL.
+10 steps: 1) marketState (TRENDING/RANGING/BREAKOUT/RETEST/LIQUIDITY_SWEEP/REVERSAL) 2) bias (STRONG_LONG/LONG/NEUTRAL/SHORT/STRONG_SHORT) 3) tradePlan (entry,stop,tp1,tp2,tp3 only if bias!=NEUTRAL) 4) riskReward+probabilityScore 5) tradeGrade (A+/A/B/C/D) 6) conflictReport (bullishFactors,bearishFactors,highConflict) 7) liquidityTarget (nearest,major,final) 8) executionPlan (entryTrigger,invalidation,targetLogic) 9) finalDecision 10) confidence (structure:25%,liquidity:20%,smc:20%,volume:15%,momentum:10%,rr:10%,total weighted avg)
 
-STEP 3 — TRADE PLAN
-Only if bias is LONG, STRONG_LONG, SHORT, or STRONG_SHORT:
-- entry: Specific entry price or zone
-- stop: Stop loss price (must be below entry for LONG, above for SHORT)
-- tp1: First take profit (minimum 1:2 risk-reward)
-- tp2: Second take profit
-- tp3: Third take profit
-
-STEP 4 — RISK METRICS
-- riskReward: Risk-to-reward ratio (e.g. "1:2.5")
-- probabilityScore: Estimated probability of success 0-100
-
-STEP 5 — TRADE QUALITY GRADE
-Grade the trade:
-- A+: all 7 validation layers pass, RR >= 1:3, confidence >= 85
-- A: 6+ layers pass, RR >= 1:2, confidence >= 75
-- B: 5+ layers pass, RR >= 1:2, confidence >= 65
-- C: 4+ layers pass, RR >= 1:1.5
-- D: weak evidence, reject this trade
-HARD RULE: If grade is D, the final decision MUST be NO_TRADE.
-
-STEP 6 — CONFLICT DETECTION
-List all bullish factors and all bearish factors visible on the chart.
-If the number of bullish factors and bearish factors are within 1 of each other, set highConflict to true.
-If highConflict is true, bias MUST be NEUTRAL.
-
-STEP 7 — LIQUIDITY TARGETS
-- nearest: Closest liquidity pool to current price
-- major: The most significant liquidity zone
-- final: The ultimate liquidity target that would complete the move
-
-STEP 8 — EXECUTION PLAN
-If bias is LONG or STRONG_LONG:
-- entryTrigger: What specific price action confirms entry
-- invalidation: Exact level that invalidates the trade
-- targetLogic: Why each TP level was chosen
-If bias is SHORT or STRONG_SHORT:
-- entryTrigger: What specific price action confirms entry
-- invalidation: Exact level that invalidates the trade
-- targetLogic: Why each TP level was chosen
-If NEUTRAL: explain why no trade.
-
-STEP 9 — FINAL DECISION
-Return exactly one: "LONG", "SHORT", or "NO_TRADE"
-NEVER return STRONG_LONG or STRONG_SHORT here. Use the bias field for direction strength.
-NO_TRADE if: confidence < 70, grade is D, highConflict is true, or bias is NEUTRAL.
-
-STEP 10 — CONFIDENCE ENGINE
-Score each component 0-100. Total is weighted average:
-- structure: 25% weight — market state clarity and trend alignment with bias
-- liquidity: 20% weight — liquidity target identification and sweep status
-- smc: 20% weight — BOS/CHOCH/MSS confirmation strength
-- volume: 15% weight — volume confirmation on key moves
-- momentum: 10% weight — momentum strength and impulse quality
-- rr: 10% weight — risk-reward ratio quality
-
-Return ONLY valid JSON. No markdown fences. Exact structure:
-
+Return ONLY JSON. No markdown fences. Schema:
 {
   "chartDetection": {
     "exchange": "Binance",

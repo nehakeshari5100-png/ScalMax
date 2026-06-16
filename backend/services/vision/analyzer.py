@@ -31,7 +31,7 @@ FALLBACK_MODELS = ["google/gemma-4-31b-it:free", "openrouter/free"]
 RETRY_DELAYS = [2, 5, 10]
 
 
-def _optimize_image(image_data: bytes, max_width: int = 1024, quality: int = 80) -> bytes:
+def _optimize_image(image_data: bytes, max_width: int = 1024, quality: int = 75) -> bytes:
     img = Image.open(BytesIO(image_data))
     orig_w, orig_h = img.size
     if img.width > max_width:
@@ -42,7 +42,8 @@ def _optimize_image(image_data: bytes, max_width: int = 1024, quality: int = 80)
         img = img.convert("RGB")
     buffer = BytesIO()
     img.save(buffer, format="JPEG", quality=quality, optimize=True)
-    print(f"[AUDIT] Image: {orig_w}x{orig_h} \u2192 {img.width}x{img.height}, quality={quality}")
+    kb = len(buffer.getvalue()) / 1024
+    print(f"[PROFILE] Image: {orig_w}x{orig_h} -> {img.width}x{img.height}, q={quality}, {kb:.1f}KB")
     return buffer.getvalue()
 
 
@@ -76,10 +77,12 @@ class VisionAnalyzer:
         model: str = "openrouter/free",
         prompt: str = "",
     ) -> VisionAnalysisResponse:
-        print("[PIPELINE] BACKEND ENTRY: VisionAnalyzer.analyze()")
+        _TOTAL = time.time()
+        print("[PROFILE] === BACKEND ENTRY ===")
         try:
             optimized = _optimize_image(image_data)
-            print(f"[PIPELINE] Image optimized: {len(optimized)} bytes")
+            t_img = time.time()
+            print(f"[PROFILE] Image optimized: {len(optimized)} bytes ({len(image_data)/1024:.0f}KB -> {len(optimized)/1024:.0f}KB, {(t_img-_TOTAL)*1000:.0f}ms)")
         except Exception as e:
             print(f"[PIPELINE] Image optimization FAILED: {e}")
             return VisionAnalysisResponse(
@@ -112,12 +115,12 @@ class VisionAnalyzer:
         request_body = {
             "model": model,
             "messages": messages,
-            "temperature": 0.2,
+            "temperature": 0.1,
             "top_p": 0.9,
-            "max_tokens": 2500,
+            "max_tokens": 600,
         }
 
-        print(f"[PIPELINE] model={model}, max_tokens=2500, temperature=0.2, prompt_len={len(system_prompt)}")
+        print(f"[PROFILE] model={model}, max_tokens=600, temperature=0.1, prompt_len={len(system_prompt)}")
 
         models_to_try = [model] + [m for m in FALLBACK_MODELS if m != model]
         last_error = None
@@ -133,13 +136,14 @@ class VisionAnalyzer:
 
             for retry in range(len(RETRY_DELAYS) + 1):
                 try:
-                    timeout = httpx.Timeout(30.0, connect=15.0)
-                    print(f"[PIPELINE] OpenRouter request: model={attempt_model}, attempt={retry+1}")
+                    timeout = httpx.Timeout(20.0, connect=10.0)
+                    print(f"[PROFILE] OpenRouter request: model={attempt_model}, attempt={retry+1}/30s-timeout")
                     t0 = time.time()
                     async with httpx.AsyncClient(timeout=timeout) as client:
                         response = await VisionAnalyzer._do_request(client, api_key, body)
                     t1 = time.time()
-                    print(f"[PIPELINE] OpenRouter response: HTTP {response.status_code}, took {(t1-t0)*1000:.0f}ms")
+                    roundtrip_ms = (t1-t0)*1000
+                    print(f"[PROFILE] OpenRouter response: HTTP {response.status_code}, took {roundtrip_ms:.0f}ms")
 
                     if response.status_code != 200:
                         err_body = ""
@@ -166,10 +170,11 @@ class VisionAnalyzer:
                         print(f"[PIPELINE] Non-200, trying next model")
                         break
 
-                    print("[PIPELINE] Parsing JSON response body")
+                    print("[PROFILE] Parsing JSON response body")
                     t2 = time.time()
                     result_data = response.json()
-                    print(f"[PIPELINE] JSON parsed in {(time.time()-t2)*1000:.0f}ms")
+                    parse_ms = (time.time()-t2)*1000
+                    print(f"[PROFILE] JSON parsed in {parse_ms:.0f}ms")
 
                     choices = result_data.get("choices", [])
                     if not choices:
@@ -187,7 +192,7 @@ class VisionAnalyzer:
                         print(f"[PIPELINE] Empty message content: {msg_str}")
                         break
 
-                    print(f"[PIPELINE] Content length: {len(content)} chars")
+                    print(f"[PROFILE] Content length: {len(content)} chars")
 
                     parsed = VisionAnalyzer._parse_json(content)
                     if parsed is None:
@@ -240,6 +245,8 @@ class VisionAnalyzer:
                         break
                     print(f"[PIPELINE] Validation: finalScore={validation_report.finalScore}, strength={validation_report.signalStrength}")
 
+                    _total_ms = (time.time() - _TOTAL) * 1000
+                    print(f"[PROFILE] === BACKEND TOTAL: {_total_ms:.0f}ms ===")
                     result = VisionAnalysisResponse(
                         success=True,
                         extraction=extraction,
@@ -248,7 +255,7 @@ class VisionAnalyzer:
                         model=attempt_model,
                     )
                     _cache[ck] = result
-                    print(f"[PIPELINE] BACKEND SUCCESS: returning result for {attempt_model}")
+                    print(f"[PROFILE] BACKEND SUCCESS ({_total_ms:.0f}ms): {attempt_model}")
                     return result
 
                 except httpx.TimeoutException:
@@ -263,7 +270,8 @@ class VisionAnalyzer:
                     traceback.print_exc()
                     break
 
-        print(f"[PIPELINE] All models exhausted. last_error={last_error}")
+        _total_ms = (time.time() - _TOTAL) * 1000
+        print(f"[PROFILE] === BACKEND FAILED ({_total_ms:.0f}ms): {last_error}")
         return VisionAnalysisResponse(
             success=False,
             error=last_error or "Analysis failed with no specific error",

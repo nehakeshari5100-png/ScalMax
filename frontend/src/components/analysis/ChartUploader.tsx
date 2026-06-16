@@ -9,11 +9,13 @@ export type UploadSource = 'drag' | 'click' | 'paste' | 'camera';
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const MAX_SIZE = 20 * 1024 * 1024;
-const MAX_IMAGE_WIDTH = 1280;
-const JPEG_QUALITY = 0.8;
+const MAX_IMAGE_WIDTH = 1024;
+const JPEG_QUALITY = 0.75;
+const TARGET_KB = 300;
 
 function compressImage(file: File, dataUrl: string): Promise<{ file: File; preview: string; width: number; height: number }> {
-  return new Promise((resolve, reject) => {
+  const t0 = performance.now();
+  return new Promise<{file:File;preview:string;width:number;height:number}>((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
@@ -30,17 +32,27 @@ function compressImage(file: File, dataUrl: string): Promise<{ file: File; previ
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, 0, 0, width, height);
       const mimeType = file.type === 'image/png' ? 'image/jpeg' : file.type;
-      const compressedPreview = canvas.toDataURL(mimeType, JPEG_QUALITY);
+      const qualityNeeded = (file.size / 1024) > 600 ? 0.6 : JPEG_QUALITY;
+      const compressedPreview = canvas.toDataURL(mimeType, qualityNeeded);
       canvas.toBlob((blob) => {
         if (!blob) { resolve({ file, preview: dataUrl, width, height }); return; }
-        const newName = file.name.replace(/\.png$/i, '.jpg');
-        const compressedFile = new File([blob], newName, { type: mimeType });
-        resolve({ file: compressedFile, preview: compressedPreview, width, height });
-      }, mimeType, JPEG_QUALITY);
+        const kb = blob.size / 1024;
+        if (kb > TARGET_KB && qualityNeeded > 0.4) {
+          const q2 = Math.max(0.3, TARGET_KB / kb * qualityNeeded);
+          canvas.toBlob((blob2) => {
+            if (!blob2) { resolve({ file: new File([blob], file.name.replace(/\.png$/i, '.jpg'), { type: mimeType }), preview: compressedPreview, width, height }); return; }
+            const newName = file.name.replace(/\.png$/i, '.jpg');
+            resolve({ file: new File([blob2], newName, { type: mimeType }), preview: URL.createObjectURL(blob2), width, height });
+          }, mimeType, q2);
+        } else {
+          const newName = file.name.replace(/\.png$/i, '.jpg');
+          resolve({ file: new File([blob], newName, { type: mimeType }), preview: compressedPreview, width, height });
+        }
+      }, mimeType, qualityNeeded);
     };
     img.onerror = () => reject(new Error('Failed to load image'));
     img.src = dataUrl;
-  });
+  }).then(r => { const ms = performance.now() - t0; console.log(`[PROFILE] Compress: ${(file.size/1024).toFixed(0)}KB -> ${(r.file.size/1024).toFixed(0)}KB, ${ms.toFixed(0)}ms`); return r; });
 }
 
 interface ChartUploaderProps {
@@ -120,28 +132,6 @@ export function ChartUploader({ onImageReady, onClear, disabled }: ChartUploader
     };
     img.src = preview;
   }, [onImageReady]);
-
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const ce = e as unknown as ClipboardEvent;
-      const target = e.target as HTMLElement;
-      if (target.closest('[data-uploader]')) return;
-      const items = ce.clipboardData?.items;
-      if (!items) return;
-      const arr = Array.from(items);
-      for (const item of arr) {
-        if (item.type.startsWith('image/')) {
-          const file = item.getAsFile();
-          if (file) {
-            validateAndLoad(file, 'paste');
-            break;
-          }
-        }
-      }
-    };
-    document.addEventListener('paste', handler);
-    return () => document.removeEventListener('paste', handler);
-  }, [validateAndLoad]);
 
   const handleClear = () => {
     setPreview(null);
