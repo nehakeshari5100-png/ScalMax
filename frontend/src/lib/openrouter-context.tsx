@@ -53,9 +53,10 @@ export function OpenRouterProvider({ children }: { children: ReactNode }) {
   const isConfigured = apiKey.length > 0 && apiKey.startsWith('sk-or-');
 
   const setApiKey = useCallback((key: string) => {
-    client.setApiKey(key);
-    setApiKeyState(key);
-    if (typeof window !== 'undefined') localStorage.setItem('openrouter-api-key', key);
+    const clean = key.trim();
+    client.setApiKey(clean);
+    setApiKeyState(clean);
+    if (typeof window !== 'undefined') localStorage.setItem('openrouter-api-key', clean);
   }, [client]);
 
   const setModel = useCallback((model: string) => {

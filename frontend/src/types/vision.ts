@@ -1,101 +1,129 @@
-export interface LiquidityDetails {
+export interface ChartDetection {
+  exchange: string
+  symbol: string
+  timeframe: string
+  currentPrice: string
+  sessionType: string
+  chartType: string
+  exchangeConfidence: number
+  symbolConfidence: number
+  timeframeConfidence: number
+  priceConfidence: number
+}
+
+export interface MarketStructure {
+  higherHighs: boolean
+  higherLows: boolean
+  lowerHighs: boolean
+  lowerLows: boolean
+  classification: string
+  swingHighs: string
+  swingLows: string
+}
+
+export interface LiquidityAnalysis {
+  buySideLiquidity: string
+  sellSideLiquidity: string
   equalHighs: boolean
   equalLows: boolean
-  liquiditySweeps: boolean
-  stopHunts: boolean
+  stopClusters: string
+  liquidityPools: string
+  internalLiquidity: string
+  externalLiquidity: string
+  swept: boolean
+  sweepType: string
 }
 
-export interface ScoringDetail {
+export interface SMCData {
+  bos: string
+  choch: string
+  mss: string
+  bosConfidence: number
+  chochConfidence: number
+  mssConfidence: number
+}
+
+export interface FVG {
+  type: string
+  top: string
+  midpoint: string
+  bottom: string
+  status: string
+  strength: number
+}
+
+export interface OrderBlock {
+  type: string
+  zone: string
+  status: string
+}
+
+export interface PremiumDiscount {
+  dealingRange: string
+  equilibrium: string
+  premiumZone: string
+  discountZone: string
+  currentPosition: string
+}
+
+export interface VolumeAnalysis {
+  spikes: string
+  absorption: string
+  exhaustion: string
+  breakoutVolume: string
+  weakVolume: string
+  climaxVolume: string
+}
+
+export interface MomentumAnalysis {
+  impulsive: string
+  corrective: string
+  consolidation: string
+  compression: string
+  score: number
+}
+
+export interface TradePlan {
+  bias: string
+  confidence: number
+  entry: string
+  stop: string
+  tp1: string
+  tp2: string
+  tp3: string
+  riskReward: string
+  probabilityScore: string
+  reasoning: string[]
+}
+
+export interface ScoringBreakdown {
   marketStructure: number
   liquidity: number
-  momentum: number
-  trend: number
+  fvg: number
+  orderBlocks: number
   volume: number
-  confluence: number
-  bullScore: number
-  bearScore: number
-  overall: number
+  momentum: number
+  total: number
 }
 
-export interface RiskAssessment {
-  accountSize: number
-  riskPercent: number
-  riskAmount: number
-  positionSize: number
-  maxLoss: number
-  expectedProfit: number
-  riskRewardRatio: string
-}
-
-export interface ScoredTrade {
-  signal: string
-  confidence: number
-  bullScore: number
-  bearScore: number
-  entry_zone: string
-  stop_loss: string
-  take_profit_1: string
-  take_profit_2: string
-  risk_reward: string
-  reason: string
-  marketStructureSummary: string
-  liquiditySummary: string
-  riskSummary: string
-  riskAssessment: RiskAssessment
-  scoring: ScoringDetail
-}
-
-export interface VisionObservation {
-  quality: string
-  detectedSymbol: string
-  detectedTimeframe: string
-  detectedExchange: string
-  detectedCurrentPrice: string
-  detectedIndicatorNames: string
-  isHigherHighs: boolean | null
-  isHigherLows: boolean | null
-  isLowerHighs: boolean | null
-  isLowerLows: boolean | null
-  ocrConfidence: number
-  trend: string
-  marketStructure: string
-  momentum: string
-  liquidity: string
-  volume: string
-  confluence: string
-  liquidityDetails: LiquidityDetails
-  confidence: number
-  entry_zone: string
-  invalidation: string
-  target_1: string
-  target_2: string
-  reason: string
-  observedTrend: string
-  observedStructure: string
-  observedMomentum: string
-  observedSupport: string
-  observedResistance: string
+export interface MarketExtraction {
+  chartDetection: ChartDetection
+  marketStructure: MarketStructure
+  liquidity: LiquidityAnalysis
+  smc: SMCData
+  fvgs: FVG[]
+  orderBlocks: OrderBlock[]
+  premiumDiscount: PremiumDiscount
+  volume: VolumeAnalysis
+  momentum: MomentumAnalysis
+  trade: TradePlan
+  scoring: ScoringBreakdown
 }
 
 export interface VisionAnalysisResponse {
   success: boolean
-  data: null
-  trade: ScoredTrade | null
-  observation: VisionObservation | null
+  extraction: MarketExtraction | null
   raw: string | null
   model: string
   error: string | null
 }
-
-export interface VisionModel {
-  id: string
-  name: string
-  description: string
-  default: boolean
-}
-
-export interface VisionModelsResponse {
-  models: VisionModel[]
-}
-
-export type ChartAnalysisResult = ScoredTrade

@@ -5,11 +5,11 @@ import { cn, formatPrice } from '@/lib/utils';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Input } from '@/components/ui/Input';
 import { Target, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
-import type { ScoredTrade } from '@/types/vision';
+import type { TradePlan } from '@/types/vision';
 
 interface TradePlanPanelProps {
   className?: string;
-  analysis?: Pick<ScoredTrade, 'entry_zone' | 'stop_loss' | 'take_profit_1' | 'take_profit_2'> | null;
+  analysis?: Pick<TradePlan, 'entry' | 'stop' | 'tp1' | 'tp2'> | null;
 }
 
 export function TradePlanPanel({ className, analysis }: TradePlanPanelProps) {
@@ -153,10 +153,10 @@ function extractLevels(analysis: NonNullable<TradePlanPanelProps['analysis']>) {
     const m = s.match(/[\d,.]+/);
     return m ? m[0].replace(/,/g, '') : '';
   };
-  const entryPrice = parsePrice(analysis.entry_zone);
-  const slPrice = parsePrice(analysis.stop_loss);
-  const tp1Price = parsePrice(analysis.take_profit_1);
-  const tp2Price = parsePrice(analysis.take_profit_2);
+  const entryPrice = parsePrice(analysis.entry);
+  const slPrice = parsePrice(analysis.stop);
+  const tp1Price = parsePrice(analysis.tp1);
+  const tp2Price = parsePrice(analysis.tp2);
   if (!entryPrice || !slPrice) return null;
   return { entry: entryPrice, sl: slPrice, tp1: tp1Price, tp2: tp2Price, tp3: '' };
 }

@@ -4,19 +4,19 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { BarChart3, Eye, TrendingUp, Zap, Shield } from 'lucide-react';
-import type { ScoringDetail } from '@/types/vision';
+import type { ScoringBreakdown } from '@/types/vision';
 
 interface ScoringGaugeProps {
-  scoring: ScoringDetail;
+  scoring: ScoringBreakdown;
   className?: string;
 }
 
 const CATEGORIES = [
-  { key: 'marketStructure' as const, label: 'Market Structure', weight: '30%', icon: BarChart3 },
-  { key: 'liquidity' as const, label: 'Liquidity', weight: '25%', icon: Eye },
-  { key: 'trend' as const, label: 'Trend', weight: '20%', icon: TrendingUp },
-  { key: 'momentum' as const, label: 'Momentum', weight: '15%', icon: Zap },
-  { key: 'confluence' as const, label: 'Confluence', weight: '10%', icon: Shield },
+  { key: 'marketStructure' as const, label: 'Market Structure', weight: '25%', icon: BarChart3 },
+  { key: 'liquidity' as const, label: 'Liquidity', weight: '20%', icon: Eye },
+  { key: 'fvg' as const, label: 'FVG', weight: '15%', icon: TrendingUp },
+  { key: 'volume' as const, label: 'Volume', weight: '15%', icon: Shield },
+  { key: 'momentum' as const, label: 'Momentum', weight: '10%', icon: Zap },
 ];
 
 function scoreColor(score: number): string {
@@ -59,21 +59,11 @@ export function ScoringGauge({ scoring, className }: ScoringGaugeProps) {
           );
         })}
         <div className="pt-3 mt-3 border-t border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1">
-              <span className="text-xs font-bold text-aurora-400">{scoring?.bullScore ?? 0}</span>
-              <span className="text-[10px] text-[var(--color-text-muted)]">/</span>
-              <span className="text-xs font-bold text-red-400">{scoring?.bearScore ?? 0}</span>
-            </div>
-            <span className="text-[10px] text-[var(--color-text-muted)]">Bull / Bear</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] text-[var(--color-text-muted)]">Overall</span>
-            <span className={cn(
-              'text-sm font-bold font-mono',
-              (scoring?.overall ?? 0) >= 60 ? 'text-aurora-400' : 'text-ember-400'
-            )}>{scoring?.overall ?? 0}</span>
-          </div>
+          <span className="text-[10px] text-[var(--color-text-muted)]">Total Score</span>
+          <span className={cn(
+            'text-sm font-bold font-mono',
+            (scoring?.total ?? 0) >= 60 ? 'text-aurora-400' : 'text-ember-400'
+          )}>{scoring?.total ?? 0}</span>
         </div>
       </div>
     </GlassCard>
