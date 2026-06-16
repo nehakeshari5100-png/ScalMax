@@ -33,7 +33,14 @@ interface OpenRouterContextType {
 const OpenRouterContext = createContext<OpenRouterContextType | null>(null);
 
 export function OpenRouterProvider({ children }: { children: ReactNode }) {
-  const [client] = useState<OpenRouterClient>(() => getOpenRouterClient());
+  const [client] = useState<OpenRouterClient>(() => {
+    const c = getOpenRouterClient();
+    const stored = typeof window !== 'undefined' ? localStorage.getItem('openrouter-api-key') : '';
+    if (stored && !c.getApiKey()) c.setApiKey(stored);
+    const storedModel = typeof window !== 'undefined' ? localStorage.getItem('openrouter-model') : '';
+    if (storedModel && !c.getModel()) c.setModel(storedModel);
+    return c;
+  });
   const [apiKey, setApiKeyState] = useState(() => client.getApiKey());
   const [modelName, setModelName] = useState(() => client.getModel());
   const [isTesting, setIsTesting] = useState(false);
@@ -48,11 +55,13 @@ export function OpenRouterProvider({ children }: { children: ReactNode }) {
   const setApiKey = useCallback((key: string) => {
     client.setApiKey(key);
     setApiKeyState(key);
+    if (typeof window !== 'undefined') localStorage.setItem('openrouter-api-key', key);
   }, [client]);
 
   const setModel = useCallback((model: string) => {
     client.setModel(model);
     setModelName(model);
+    if (typeof window !== 'undefined') localStorage.setItem('openrouter-model', model);
   }, [client]);
 
   const testConnection = useCallback(async (model?: string): Promise<ConnectionTestResult> => {
