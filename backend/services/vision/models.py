@@ -124,9 +124,26 @@ class MarketExtraction(BaseModel):
     scoring: ScoringBreakdown = Field(default_factory=ScoringBreakdown)
 
 
+class ValidationLayer(BaseModel):
+    name: str
+    passed: bool
+    score: int
+    maxScore: int
+    details: str = ""
+
+
+class ValidationReport(BaseModel):
+    layers: List[ValidationLayer]
+    passedLayers: List[str]
+    failedLayers: List[str]
+    finalScore: int
+    signalStrength: str
+
+
 class VisionAnalysisResponse(BaseModel):
     success: bool
     extraction: Optional[MarketExtraction] = None
+    validation: Optional[ValidationReport] = None
     raw: Optional[str] = None
     model: str = ""
     error: Optional[str] = None

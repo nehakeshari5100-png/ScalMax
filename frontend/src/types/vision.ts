@@ -120,9 +120,26 @@ export interface MarketExtraction {
   scoring: ScoringBreakdown
 }
 
+export interface ValidationLayer {
+  name: string
+  passed: boolean
+  score: number
+  maxScore: number
+  details: string
+}
+
+export interface ValidationReport {
+  layers: ValidationLayer[]
+  passedLayers: string[]
+  failedLayers: string[]
+  finalScore: number
+  signalStrength: 'STRONG_SIGNAL' | 'VALID_SIGNAL' | 'WATCHLIST' | 'NO_TRADE'
+}
+
 export interface VisionAnalysisResponse {
   success: boolean
   extraction: MarketExtraction | null
+  validation: ValidationReport | null
   raw: string | null
   model: string
   error: string | null

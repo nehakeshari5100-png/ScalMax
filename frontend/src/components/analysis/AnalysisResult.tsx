@@ -8,10 +8,12 @@ import {
   Zap, BarChart3, Eye, Activity,
   Layers,
 } from 'lucide-react';
-import type { MarketExtraction } from '@/types/vision';
+import type { MarketExtraction, ValidationReport } from '@/types/vision';
+import { ValidationReportCard } from '@/components/analysis/ValidationReport';
 
 interface AnalysisResultProps {
   extraction: MarketExtraction;
+  validation: ValidationReport | null;
   model: string;
 }
 
@@ -28,7 +30,7 @@ function Tag({ children, color }: { children: React.ReactNode; color?: string })
   );
 }
 
-export function AnalysisResult({ extraction, model }: AnalysisResultProps) {
+export function AnalysisResult({ extraction, validation, model }: AnalysisResultProps) {
   const { chartDetection: cd, marketStructure: ms, liquidity: liq, smc, fvgs, orderBlocks: obs, premiumDiscount: pd, volume: vol, momentum: mom, trade, scoring } = extraction;
 
   const biasConfig: Record<string, { icon: any; color: string; bg: string; border: string; label: string }> = {
@@ -244,6 +246,11 @@ export function AnalysisResult({ extraction, model }: AnalysisResultProps) {
             {mom.compression && <div><span className="text-[10px] font-medium">Compression: </span>{mom.compression}</div>}
           </div>
         </GlassCard>
+      )}
+
+      {/* Signal Validation Engine */}
+      {validation && (
+        <ValidationReportCard report={validation} />
       )}
 
       {/* STEP 12: Scoring Breakdown */}

@@ -14,6 +14,8 @@ from services.vision.models import (
     MASTER_PROMPT,
     VisionAnalysisResponse,
 )
+from services.vision.scoring import validate_extraction
+from services.vision.validation import SignalValidator
 
 OPENROUTER_BASE = "https://openrouter.ai/api/v1"
 _cache: dict[str, VisionAnalysisResponse] = {}
@@ -168,9 +170,17 @@ class VisionAnalyzer:
                             print(f"[FALLBACK] {attempt_model} validation error: {e}, trying next model")
                             break
 
+                        # Apply code-level safety net
+                        validated_trade = validate_extraction(extraction)
+                        extraction.trade = validated_trade
+
+                        # Run 7-layer Signal Validation Engine
+                        validation_report = SignalValidator.validate(extraction)
+
                         result = VisionAnalysisResponse(
                             success=True,
                             extraction=extraction,
+                            validation=validation_report,
                             raw=content,
                             model=attempt_model,
                         )
