@@ -7,9 +7,10 @@ import { ScoringGauge } from './ScoringGauge';
 import { TradePlanPanel } from './TradePlanPanel';
 import {
   TrendingUp, TrendingDown, Minus, Shield, Brain, Target,
-  Zap, AlertTriangle, BarChart3, Eye, Activity, DollarSign, Info,
+  Zap,   AlertTriangle, BarChart3, Eye, Activity, DollarSign,
 } from 'lucide-react';
 import type { ScoredTrade, VisionObservation } from '@/types/vision';
+import type { ReactNode } from 'react';
 
 interface AnalysisResultProps {
   trade: ScoredTrade;
@@ -21,11 +22,12 @@ const SIGNAL_CONFIG: Record<string, { icon: any; color: string; bg: string; bord
   STRONG_LONG: { icon: TrendingUp, color: 'text-aurora-400', bg: 'bg-aurora-500/15', border: 'border-aurora-500/25', label: 'STRONG LONG' },
   LONG: { icon: TrendingUp, color: 'text-aurora-500', bg: 'bg-aurora-500/10', border: 'border-aurora-500/15', label: 'LONG' },
   NEUTRAL: { icon: Minus, color: 'text-ember-400', bg: 'bg-ember-500/10', border: 'border-ember-500/20', label: 'NEUTRAL' },
+  NO_TRADE: { icon: Minus, color: 'text-ember-400', bg: 'bg-ember-500/10', border: 'border-ember-500/20', label: 'NO TRADE' },
   SHORT: { icon: TrendingDown, color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/15', label: 'SHORT' },
   STRONG_SHORT: { icon: TrendingDown, color: 'text-red-400', bg: 'bg-red-500/15', border: 'border-red-500/25', label: 'STRONG SHORT' },
 };
 
-function Tag({ children, color }: { children: string | number; color?: string }) {
+function Tag({ children, color }: { children: ReactNode; color?: string }) {
   return (
     <span className={cn(
       'inline-flex px-2 py-0.5 rounded text-[10px] font-medium',
@@ -40,7 +42,7 @@ function Tag({ children, color }: { children: string | number; color?: string })
 
 export function AnalysisResult({ trade, observation, model }: AnalysisResultProps) {
   const signal = SIGNAL_CONFIG[trade.signal] || SIGNAL_CONFIG.NEUTRAL;
-  const isNoTrade = trade.signal === 'NEUTRAL' && trade.confidence === 0;
+  const isNoTrade = trade.signal === 'NO_TRADE' || (trade.signal === 'NEUTRAL' && trade.confidence === 0);
   const VerdictIcon = signal.icon;
 
   const confidenceColor = trade.confidence >= 85 ? 'bg-aurora-400' : trade.confidence >= 70 ? 'bg-cyber-400' : trade.confidence >= 50 ? 'bg-ember-400' : 'bg-red-400';
@@ -57,7 +59,7 @@ export function AnalysisResult({ trade, observation, model }: AnalysisResultProp
     ld?.equalLows && 'Equal Lows',
     ld?.liquiditySweeps && 'Sweep',
     ld?.stopHunts && 'Stop Hunt',
-  ].filter(Boolean);
+  ].filter((x): x is string => Boolean(x));
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
@@ -97,11 +99,135 @@ export function AnalysisResult({ trade, observation, model }: AnalysisResultProp
         {/* Risk Summary */}
         {trade.riskSummary && (
           <div className="mt-4 pt-3 border-t border-white/5 flex items-start gap-2">
-            <Info className="w-3.5 h-3.5 text-cyber-400 mt-0.5 shrink-0" />
+            <AlertTriangle className="w-3.5 h-3.5 text-cyber-400 mt-0.5 shrink-0" />
             <p className="text-[11px] text-[var(--color-text-muted)]">{trade.riskSummary}</p>
           </div>
         )}
       </GlassCard>
+
+      {/* PHASE 6: Visual Debug — Detected Chart Info */}
+      {(observation.detectedSymbol || observation.detectedTimeframe || observation.detectedCurrentPrice || observation.ocrConfidence > 0) && (
+        <GlassCard className="p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Eye className="w-4 h-4 text-cyber-400" />
+            <h3 className="text-sm font-semibold">Detected Chart Info</h3>
+            {observation.ocrConfidence > 0 && (
+              <Tag color={observation.ocrConfidence >= 80 ? 'green' : 'red'}>{`OCR ${observation.ocrConfidence}%`}</Tag>
+            )}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
+            {observation.detectedSymbol && (
+              <div>
+                <span className="text-[10px] text-[var(--color-text-muted)]">Symbol</span>
+                <p className="text-xs font-mono font-medium">{observation.detectedSymbol}</p>
+              </div>
+            )}
+            {observation.detectedTimeframe && (
+              <div>
+                <span className="text-[10px] text-[var(--color-text-muted)]">Timeframe</span>
+                <p className="text-xs font-mono font-medium">{observation.detectedTimeframe}</p>
+              </div>
+            )}
+            {observation.detectedExchange && (
+              <div>
+                <span className="text-[10px] text-[var(--color-text-muted)]">Exchange</span>
+                <p className="text-xs font-mono font-medium">{observation.detectedExchange}</p>
+              </div>
+            )}
+            {observation.detectedCurrentPrice && (
+              <div>
+                <span className="text-[10px] text-[var(--color-text-muted)]">Current Price</span>
+                <p className="text-xs font-mono font-medium text-aurora-400">{observation.detectedCurrentPrice}</p>
+              </div>
+            )}
+            {observation.detectedIndicatorNames && (
+              <div>
+                <span className="text-[10px] text-[var(--color-text-muted)]">Indicators</span>
+                <p className="text-xs font-mono font-medium">{observation.detectedIndicatorNames}</p>
+              </div>
+            )}
+          </div>
+          {(observation.isHigherHighs !== null || observation.isHigherLows !== null) && (
+            <div className="mt-3 pt-3 border-t border-white/5 flex flex-wrap gap-1.5">
+              {observation.isHigherHighs !== null && (
+                <Tag color={observation.isHigherHighs ? 'green' : 'amber'}>HH:{observation.isHigherHighs ? 'YES' : 'NO'}</Tag>
+              )}
+              {observation.isHigherLows !== null && (
+                <Tag color={observation.isHigherLows ? 'green' : 'amber'}>HL:{observation.isHigherLows ? 'YES' : 'NO'}</Tag>
+              )}
+              {observation.isLowerHighs !== null && (
+                <Tag color={observation.isLowerHighs ? 'red' : 'amber'}>LH:{observation.isLowerHighs ? 'YES' : 'NO'}</Tag>
+              )}
+              {observation.isLowerLows !== null && (
+                <Tag color={observation.isLowerLows ? 'red' : 'amber'}>LL:{observation.isLowerLows ? 'YES' : 'NO'}</Tag>
+              )}
+            </div>
+          )}
+        </GlassCard>
+      )}
+
+      {/* Reasoning */}
+      {(trade.reason || observation.reason || observation.observedTrend) && (
+        <GlassCard className="p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Brain className="w-4 h-4 text-cyber-400" />
+            <h3 className="text-sm font-semibold">Reasoning</h3>
+          </div>
+          {trade.reason && (
+            <p className="text-[11px] text-[var(--color-text-muted)] leading-relaxed">{trade.reason}</p>
+          )}
+          {!trade.reason && observation.reason && (
+            <p className="text-[11px] text-[var(--color-text-muted)] leading-relaxed">{observation.reason}</p>
+          )}
+          <div className="mt-3 grid grid-cols-1 gap-2">
+            {observation.observedTrend && (
+              <div className="flex items-start gap-2">
+                <TrendingUp className="w-3 h-3 text-aurora-400 mt-0.5 shrink-0" />
+                <div>
+                  <span className="text-[10px] font-medium text-[var(--color-text-muted)]">Observed Trend</span>
+                  <p className="text-[11px] text-[var(--color-text-muted)]">{observation.observedTrend}</p>
+                </div>
+              </div>
+            )}
+            {observation.observedStructure && (
+              <div className="flex items-start gap-2">
+                <BarChart3 className="w-3 h-3 text-cyber-400 mt-0.5 shrink-0" />
+                <div>
+                  <span className="text-[10px] font-medium text-[var(--color-text-muted)]">Observed Structure</span>
+                  <p className="text-[11px] text-[var(--color-text-muted)]">{observation.observedStructure}</p>
+                </div>
+              </div>
+            )}
+            {observation.observedMomentum && (
+              <div className="flex items-start gap-2">
+                <Zap className="w-3 h-3 text-amber-400 mt-0.5 shrink-0" />
+                <div>
+                  <span className="text-[10px] font-medium text-[var(--color-text-muted)]">Observed Momentum</span>
+                  <p className="text-[11px] text-[var(--color-text-muted)]">{observation.observedMomentum}</p>
+                </div>
+              </div>
+            )}
+            {observation.observedSupport && (
+              <div className="flex items-start gap-2">
+                <Shield className="w-3 h-3 text-aurora-400 mt-0.5 shrink-0" />
+                <div>
+                  <span className="text-[10px] font-medium text-[var(--color-text-muted)]">Observed Support</span>
+                  <p className="text-[11px] text-[var(--color-text-muted)]">{observation.observedSupport}</p>
+                </div>
+              </div>
+            )}
+            {observation.observedResistance && (
+              <div className="flex items-start gap-2">
+                <TrendingDown className="w-3 h-3 text-red-400 mt-0.5 shrink-0" />
+                <div>
+                  <span className="text-[10px] font-medium text-[var(--color-text-muted)]">Observed Resistance</span>
+                  <p className="text-[11px] text-[var(--color-text-muted)]">{observation.observedResistance}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </GlassCard>
+      )}
 
       {/* Observations */}
       <GlassCard className="p-4">
@@ -191,14 +317,22 @@ export function AnalysisResult({ trade, observation, model }: AnalysisResultProp
       </GlassCard>
 
       {/* Risk Assessment */}
-      {trade.confidence < 50 && (
+      {(trade.confidence < 50 || observation.ocrConfidence < 80) && (
         <GlassCard className="p-5 border border-ember-500/20">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-ember-400" />
-            <p className="text-xs text-ember-400">Low confidence trade ({trade.confidence}%). Consider skipping or using a tighter stop.</p>
-          </div>
+          {observation.ocrConfidence < 80 && observation.ocrConfidence > 0 && (
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-ember-400" />
+              <p className="text-xs text-ember-400">Low OCR confidence ({observation.ocrConfidence}%). Chart details may be unreliable.</p>
+            </div>
+          )}
+          {trade.confidence < 50 && trade.confidence > 0 && (
+            <div className={cn("flex items-center gap-2", observation.ocrConfidence < 80 ? "mt-2" : "")}>
+              <AlertTriangle className="w-4 h-4 text-ember-400" />
+              <p className="text-xs text-ember-400">Low confidence trade ({trade.confidence}%). Consider skipping or using a tighter stop.</p>
+            </div>
+          )}
           {observation.quality === 'UNREADABLE_CHART' && (
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-red-400" />
               <p className="text-xs text-red-400">Chart quality too low for reliable analysis.</p>
             </div>
@@ -207,7 +341,7 @@ export function AnalysisResult({ trade, observation, model }: AnalysisResultProp
       )}
 
       {/* Trade Plan */}
-      {trade.confidence >= 50 && (
+      {trade.confidence >= 50 && trade.signal !== 'NO_TRADE' && (
         <TradePlanPanel analysis={{ entry_zone: trade.entry_zone, stop_loss: trade.stop_loss, take_profit_1: trade.take_profit_1, take_profit_2: trade.take_profit_2 }} />
       )}
     </motion.div>

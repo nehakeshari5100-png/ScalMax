@@ -10,6 +10,56 @@ WEIGHTS = {
 }
 
 
+def _evidence_check(obs: VisionObservation, signal: str) -> tuple[str, str]:
+    """
+    Enforce hard evidence-check rules derived from observations.
+    - HH + HL → SHORT is FORBIDDEN (via marketStructure or explicit booleans)
+    - LH + LL → LONG is FORBIDDEN
+    - Ranging → forced NEUTRAL
+    - Unclear structure + low confidence → NEUTRAL forced
+    """
+    # Use explicit boolean fields if available, fall back to marketStructure
+    has_hh = obs.isHigherHighs is True
+    has_hl = obs.isHigherLows is True
+    has_lh = obs.isLowerHighs is True
+    has_ll = obs.isLowerLows is True
+
+    bull_structure = has_hh and has_hl
+    bear_structure = has_lh and has_ll
+
+    # Fallback to marketStructure if boolean fields are not set
+    if obs.isHigherHighs is None:
+        bull_structure = obs.marketStructure in ("HH_HL", "HH_LL") and obs.trend == "bullish"
+        bear_structure = obs.marketStructure in ("LH_LL", "LH_HL") and obs.trend == "bearish"
+
+    strong_bearish_evidence = obs.confluence == "resistance" or obs.liquidity == "above_highs"
+    strong_bullish_evidence = obs.confluence == "support" or obs.liquidity == "below_lows"
+
+    reason = ""
+
+    # PHASE 4 rule: HH+HL → SHORT forbidden, LH+LL → LONG forbidden
+    if bull_structure and signal in ("SHORT", "STRONG_SHORT"):
+        signal = "LONG"
+        reason = "HH+HL detected (bullish structure). SHORT forbidden. Overridden to LONG."
+
+    if bear_structure and signal in ("LONG", "STRONG_LONG"):
+        signal = "SHORT"
+        reason = "LH+LL detected (bearish structure). LONG forbidden. Overridden to SHORT."
+
+    # PHASE 4 rule: Ranging → NO_TRADE
+    if obs.marketStructure == "ranging" and signal not in ("NEUTRAL", "NO_TRADE"):
+        signal = "NEUTRAL"
+        if not reason:
+            reason = "Market structure is ranging (no clear HH/HL/LH/LL). NO_TRADE."
+
+    if obs.marketStructure == "unclear" and obs.confidence < 50 and signal not in ("NEUTRAL",):
+        signal = "NEUTRAL"
+        if not reason:
+            reason = "Market structure unclear, confidence too low. No directional bias."
+
+    return signal, reason
+
+
 def _parse_price(s: str) -> float:
     m = re.search(r"[\d,.]+", s.replace(",", ""))
     return float(m.group(0)) if m else 0.0
@@ -144,15 +194,62 @@ def _calculate_risk_assessment(entry: float, sl: float, tp1: float, tp2: float,
     )
 
 
+def _validate_prices(obs: VisionObservation) -> tuple[str, str, str, str]:
+    """Validate entry/SL/TP against detected current price. Clear unrealistic values."""
+    if not obs.detectedCurrentPrice:
+        return obs.entry_zone, obs.invalidation, obs.target_1, obs.target_2
+
+    current = _parse_price(obs.detectedCurrentPrice)
+    if current == 0:
+        return obs.entry_zone, obs.invalidation, obs.target_1, obs.target_2
+
+    entry = _parse_price(obs.entry_zone)
+    sl = _parse_price(obs.invalidation)
+    tp1 = _parse_price(obs.target_1)
+    tp2 = _parse_price(obs.target_2)
+
+    entry_zone = obs.entry_zone
+    invalidation = obs.invalidation
+    target_1 = obs.target_1
+    target_2 = obs.target_2
+
+    if entry and abs(entry - current) / current > 0.15:
+        entry_zone = ""
+    if sl and abs(sl - current) / current > 0.25:
+        invalidation = ""
+    if tp1 and abs(tp1 - current) / current > 0.50:
+        target_1 = ""
+    if tp2 and abs(tp2 - current) / current > 0.50:
+        target_2 = ""
+
+    return entry_zone, invalidation, target_1, target_2
+
+
 def score_observation(obs: VisionObservation,
                       account_size: float = 10000.0,
                       risk_pct: float = 1.5) -> ScoredTrade:
-    if obs.quality == "UNREADABLE_CHART":
+    # PHASE 2 gate: OCR confidence too low
+    if obs.ocrConfidence < 80:
+        reason = f"OCR confidence too low ({obs.ocrConfidence}%). Chart details not reliably readable."
+        if obs.reason:
+            reason = f"{reason} {obs.reason}"
         return ScoredTrade(
-            signal="NEUTRAL",
+            signal="NO_TRADE",
             confidence=0,
             bullScore=0,
             bearScore=0,
+            reason=reason,
+            scoring=ScoringDetail(),
+        )
+
+    # PHASE 1 gate: chart quality too low
+    if obs.quality == "UNREADABLE_CHART":
+        return ScoredTrade(
+            signal="NO_TRADE",
+            confidence=0,
+            bullScore=0,
+            bearScore=0,
+            reason="Chart is unreadable",
             scoring=ScoringDetail(),
         )
 
@@ -192,6 +289,33 @@ def score_observation(obs: VisionObservation,
     else:
         signal = "NEUTRAL"
 
+    # Evidence check: enforce observation-driven rules
+    signal, evidence_reason = _evidence_check(obs, signal)
+
+    # PHASE 4: Ranging → NO_TRADE
+    if obs.marketStructure == "ranging":
+        signal = "NO_TRADE"
+        if not evidence_reason:
+            evidence_reason = "Market structure is ranging (no clear HH/HL/LH/LL). No trade."
+
+    # NO_TRADE if confidence from AI is too low or signal ended up NEUTRAL on unclear chart
+    if signal == "NEUTRAL" and obs.confidence < 30:
+        signal = "NO_TRADE"
+        if not evidence_reason:
+            evidence_reason = "Confidence too low."
+
+    # PHASE 5: Price validation — reject unrealistic entry/SL/TP vs detected current price
+    validated_entry, validated_sl, validated_tp1, validated_tp2 = _validate_prices(obs)
+
+    # If all entry/SL/TP were rejected and signal is directional, downgrade
+    if signal in ("LONG", "STRONG_LONG", "SHORT", "STRONG_SHORT"):
+        has_valid_prices = bool(validated_entry or validated_sl or validated_tp1 or validated_tp2)
+        if not has_valid_prices:
+            signal = "NEUTRAL"
+            evidence_reason = (evidence_reason + " | " if evidence_reason else "") + "Prices rejected by validation."
+            if obs.confidence < 30:
+                signal = "NO_TRADE"
+
     if signal in ("STRONG_LONG", "STRONG_SHORT"):
         final_conf = max(bull_score, bear_score) + 5
     elif signal in ("LONG", "SHORT"):
@@ -209,10 +333,29 @@ def score_observation(obs: VisionObservation,
     else:
         risk_summary = "No trade — confidence too low"
 
-    entry = _parse_price(obs.entry_zone)
-    sl = _parse_price(obs.invalidation)
-    tp1 = _parse_price(obs.target_1)
-    tp2 = _parse_price(obs.target_2)
+    # Build reason string from AI reason + evidence check + observation details + OCR metadata
+    reason_parts = []
+    ocr_parts = []
+    if obs.detectedSymbol:
+        ocr_parts.append(f"Symbol:{obs.detectedSymbol}")
+    if obs.detectedTimeframe:
+        ocr_parts.append(f"TF:{obs.detectedTimeframe}")
+    if obs.detectedCurrentPrice:
+        ocr_parts.append(f"Price:{obs.detectedCurrentPrice}")
+    if obs.detectedExchange:
+        ocr_parts.append(f"Exch:{obs.detectedExchange}")
+    if ocr_parts:
+        reason_parts.append("[" + " | ".join(ocr_parts) + "]")
+    if obs.reason:
+        reason_parts.append(obs.reason)
+    if evidence_reason:
+        reason_parts.append(evidence_reason)
+    final_reason = " | ".join(reason_parts) if reason_parts else "Analysis based on chart observation"
+
+    entry = _parse_price(validated_entry or obs.entry_zone)
+    sl = _parse_price(validated_sl or obs.invalidation)
+    tp1 = _parse_price(validated_tp1 or obs.target_1)
+    tp2 = _parse_price(validated_tp2 or obs.target_2)
     rr = _calc_rr(entry, sl, tp1, tp2)
 
     risk_assessment = _calculate_risk_assessment(entry, sl, tp1, tp2, account_size, risk_pct)
@@ -234,11 +377,12 @@ def score_observation(obs: VisionObservation,
         confidence=final_conf,
         bullScore=bull_score,
         bearScore=bear_score,
-        entry_zone=obs.entry_zone,
-        stop_loss=obs.invalidation,
-        take_profit_1=obs.target_1,
-        take_profit_2=obs.target_2,
+        entry_zone=validated_entry or obs.entry_zone,
+        stop_loss=validated_sl or obs.invalidation,
+        take_profit_1=validated_tp1 or obs.target_1,
+        take_profit_2=validated_tp2 or obs.target_2,
         risk_reward=rr,
+        reason=final_reason,
         marketStructureSummary=ms_summary,
         liquiditySummary=liq_summary,
         riskSummary=risk_summary,

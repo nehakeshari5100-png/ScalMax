@@ -51,6 +51,18 @@ def _fallback_observation() -> VisionObservation:
         invalidation="",
         target_1="",
         target_2="",
+        reason="",
+        observedTrend="",
+        observedStructure="",
+        observedMomentum="",
+        observedSupport="",
+        observedResistance="",
+        detectedSymbol="",
+        detectedTimeframe="",
+        detectedExchange="",
+        detectedCurrentPrice="",
+        detectedIndicatorNames="",
+        ocrConfidence=0,
     )
 
 
@@ -68,6 +80,22 @@ def _fill_missing(parsed: dict) -> dict:
         "invalidation": "",
         "target_1": "",
         "target_2": "",
+        "reason": "",
+        "observedTrend": "",
+        "observedStructure": "",
+        "observedMomentum": "",
+        "observedSupport": "",
+        "observedResistance": "",
+        "detectedSymbol": "",
+        "detectedTimeframe": "",
+        "detectedExchange": "",
+        "detectedCurrentPrice": "",
+        "detectedIndicatorNames": "",
+        "isHigherHighs": None,
+        "isHigherLows": None,
+        "isLowerHighs": None,
+        "isLowerLows": None,
+        "ocrConfidence": 0,
     }
     if "liquidityDetails" not in parsed or not isinstance(parsed["liquidityDetails"], dict):
         parsed["liquidityDetails"] = {}
@@ -121,7 +149,7 @@ class VisionAnalyzer:
             "messages": messages,
             "temperature": 0.1,
             "top_p": 0.9,
-            "max_tokens": 800,
+            "max_tokens": 1000,
         }
 
         try:
@@ -203,15 +231,6 @@ class VisionAnalyzer:
                     return result
 
                 parsed = _fill_missing(parsed)
-
-                if parsed.get("quality") == "UNREADABLE_CHART":
-                    result = VisionAnalysisResponse(
-                        success=False,
-                        error="CHART_QUALITY_TOO_LOW: Chart image is not readable. Please upload a clearer screenshot.",
-                        model=model,
-                    )
-                    _cache[ck] = result
-                    return result
 
                 try:
                     observation = VisionObservation(**parsed)

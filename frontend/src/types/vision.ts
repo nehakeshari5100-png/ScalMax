@@ -37,6 +37,7 @@ export interface ScoredTrade {
   take_profit_1: string
   take_profit_2: string
   risk_reward: string
+  reason: string
   marketStructureSummary: string
   liquiditySummary: string
   riskSummary: string
@@ -46,6 +47,16 @@ export interface ScoredTrade {
 
 export interface VisionObservation {
   quality: string
+  detectedSymbol: string
+  detectedTimeframe: string
+  detectedExchange: string
+  detectedCurrentPrice: string
+  detectedIndicatorNames: string
+  isHigherHighs: boolean | null
+  isHigherLows: boolean | null
+  isLowerHighs: boolean | null
+  isLowerLows: boolean | null
+  ocrConfidence: number
   trend: string
   marketStructure: string
   momentum: string
@@ -58,6 +69,12 @@ export interface VisionObservation {
   invalidation: string
   target_1: string
   target_2: string
+  reason: string
+  observedTrend: string
+  observedStructure: string
+  observedMomentum: string
+  observedSupport: string
+  observedResistance: string
 }
 
 export interface VisionAnalysisResponse {
