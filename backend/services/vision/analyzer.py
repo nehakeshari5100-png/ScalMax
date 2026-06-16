@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import hashlib
 import json
@@ -9,18 +10,20 @@ import httpx
 from PIL import Image
 
 from services.vision.models import (
-    VisionObservation,
-    OBSERVATION_PROMPT,
+    MarketExtraction,
+    MASTER_PROMPT,
     VisionAnalysisResponse,
-    LiquidityDetails,
 )
 
 OPENROUTER_BASE = "https://openrouter.ai/api/v1"
 _cache: dict[str, VisionAnalysisResponse] = {}
+FALLBACK_MODELS = ["nex-agi/nex-n2-pro:free", "openrouter/free"]
+RETRY_DELAYS = [2, 5, 10]
 
 
-def _optimize_image(image_data: bytes, max_width: int = 800, quality: int = 55) -> bytes:
+def _optimize_image(image_data: bytes, max_width: int = 1024, quality: int = 80) -> bytes:
     img = Image.open(BytesIO(image_data))
+    orig_w, orig_h = img.size
     if img.width > max_width:
         ratio = max_width / img.width
         new_height = int(img.height * ratio)
@@ -29,6 +32,7 @@ def _optimize_image(image_data: bytes, max_width: int = 800, quality: int = 55) 
         img = img.convert("RGB")
     buffer = BytesIO()
     img.save(buffer, format="JPEG", quality=quality, optimize=True)
+    print(f"[AUDIT] Image: {orig_w}x{orig_h} \u2192 {img.width}x{img.height}, quality={quality}")
     return buffer.getvalue()
 
 
@@ -36,78 +40,25 @@ def _cache_key(image_data: bytes, model: str) -> str:
     return hashlib.md5(image_data + model.encode()).hexdigest()
 
 
-def _fallback_observation() -> VisionObservation:
-    return VisionObservation(
-        quality="READABLE",
-        trend="neutral",
-        marketStructure="ranging",
-        momentum="moderate",
-        liquidity="none",
-        volume="medium",
-        confluence="none",
-        liquidityDetails=LiquidityDetails(),
-        confidence=0,
-        entry_zone="",
-        invalidation="",
-        target_1="",
-        target_2="",
-        reason="",
-        observedTrend="",
-        observedStructure="",
-        observedMomentum="",
-        observedSupport="",
-        observedResistance="",
-        detectedSymbol="",
-        detectedTimeframe="",
-        detectedExchange="",
-        detectedCurrentPrice="",
-        detectedIndicatorNames="",
-        ocrConfidence=0,
-    )
-
-
-def _fill_missing(parsed: dict) -> dict:
-    defaults = {
-        "quality": "READABLE",
-        "trend": "neutral",
-        "marketStructure": "ranging",
-        "momentum": "moderate",
-        "liquidity": "none",
-        "volume": "medium",
-        "confluence": "none",
-        "confidence": 0,
-        "entry_zone": "",
-        "invalidation": "",
-        "target_1": "",
-        "target_2": "",
-        "reason": "",
-        "observedTrend": "",
-        "observedStructure": "",
-        "observedMomentum": "",
-        "observedSupport": "",
-        "observedResistance": "",
-        "detectedSymbol": "",
-        "detectedTimeframe": "",
-        "detectedExchange": "",
-        "detectedCurrentPrice": "",
-        "detectedIndicatorNames": "",
-        "isHigherHighs": None,
-        "isHigherLows": None,
-        "isLowerHighs": None,
-        "isLowerLows": None,
-        "ocrConfidence": 0,
-    }
-    if "liquidityDetails" not in parsed or not isinstance(parsed["liquidityDetails"], dict):
-        parsed["liquidityDetails"] = {}
-    ld_defaults = {"equalHighs": False, "equalLows": False, "liquiditySweeps": False, "stopHunts": False}
-    for k, v in ld_defaults.items():
-        parsed["liquidityDetails"].setdefault(k, v)
-    for k, v in defaults.items():
-        parsed.setdefault(k, v)
-    return parsed
-
-
 class VisionAnalyzer:
+    @staticmethod
+    async def _do_request(
+        client: httpx.AsyncClient,
+        api_key: str,
+        request_body: dict,
+    ) -> httpx.Response:
+        sanitized_key = api_key.strip()
+        bearer = f"Bearer {sanitized_key}"
+        return await client.post(
+            f"{OPENROUTER_BASE}/chat/completions",
+            headers={
+                "Authorization": bearer,
+                "Content-Type": "application/json",
+                "HTTP-Referer": "scalpex-ai",
+            },
+            json=request_body,
+        )
+
     @staticmethod
     async def analyze(
         api_key: str,
@@ -131,14 +82,14 @@ class VisionAnalyzer:
         if cached is not None:
             return cached
 
-        system_prompt = prompt if prompt else OBSERVATION_PROMPT
+        system_prompt = prompt if prompt else MASTER_PROMPT
 
         messages = [
             {"role": "system", "content": system_prompt},
             {
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": "Analyze this chart and return only the JSON."},
+                    {"type": "text", "text": "Analyze this chart using the 12-step master extraction engine. Return only the JSON."},
                     {"type": "image_url", "image_url": {"url": image_url}},
                 ],
             },
@@ -147,121 +98,100 @@ class VisionAnalyzer:
         request_body = {
             "model": model,
             "messages": messages,
-            "temperature": 0.1,
+            "temperature": 0.2,
             "top_p": 0.9,
-            "max_tokens": 1000,
+            "max_tokens": 2000,
         }
 
-        try:
-            async with httpx.AsyncClient(timeout=90.0) as client:
-                response = await client.post(
-                    f"{OPENROUTER_BASE}/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json",
-                        "HTTP-Referer": "scalpex-ai",
-                    },
-                    json=request_body,
-                )
+        print(f"[AUDIT] model={model}, max_tokens=2000, temperature=0.2, prompt_len={len(system_prompt)}")
 
-                if response.status_code == 402:
-                    if model != "openrouter/free":
-                        free_result = await VisionAnalyzer.analyze(
-                            api_key=api_key,
-                            image_data=image_data,
-                            model="openrouter/free",
-                            prompt=prompt,
-                        )
-                        return free_result
-                    result = VisionAnalysisResponse(
-                        success=False,
-                        error="Insufficient OpenRouter credits. Switch to 'openrouter/free' model or add credits at https://openrouter.ai/settings/credits.",
-                        model=model,
-                    )
-                    _cache[ck] = result
-                    return result
+        models_to_try = [model] + [m for m in FALLBACK_MODELS if m != model]
+        last_error = None
 
-                if response.status_code != 200:
-                    error_detail = response.text
-                    try:
-                        err_json = response.json()
-                        error_detail = err_json.get("error", {}).get("message", response.text)
-                    except Exception:
-                        pass
-                    result = VisionAnalysisResponse(
-                        success=False,
-                        error=f"ANALYSIS_UNAVAILABLE: OpenRouter API error ({response.status_code}): {error_detail}",
-                        model=model,
-                    )
-                    _cache[ck] = result
-                    return result
+        for attempt_model in models_to_try:
+            body = dict(request_body, model=attempt_model)
+            ck = _cache_key(optimized, attempt_model)
+            cached = _cache.get(ck)
+            if cached is not None:
+                return cached
 
-                result_data = response.json()
-                choices = result_data.get("choices", [])
-                if not choices:
-                    result = VisionAnalysisResponse(
-                        success=False,
-                        error="ANALYSIS_UNAVAILABLE: No choices in model response",
-                        raw=json.dumps(result_data),
-                        model=model,
-                    )
-                    _cache[ck] = result
-                    return result
-
-                content = choices[0].get("message", {}).get("content", "")
-                if not content:
-                    result = VisionAnalysisResponse(
-                        success=False,
-                        error="ANALYSIS_UNAVAILABLE: Empty response from model",
-                        raw=json.dumps(result_data),
-                        model=model,
-                    )
-                    _cache[ck] = result
-                    return result
-
-                parsed = VisionAnalyzer._parse_json(content)
-                if parsed is None:
-                    result = VisionAnalysisResponse(
-                        success=False,
-                        error="ANALYSIS_UNAVAILABLE: Failed to parse JSON from model response",
-                        raw=content,
-                        model=model,
-                    )
-                    _cache[ck] = result
-                    return result
-
-                parsed = _fill_missing(parsed)
-
+            for retry in range(len(RETRY_DELAYS) + 1):
                 try:
-                    observation = VisionObservation(**parsed)
-                except Exception:
-                    observation = _fallback_observation()
+                    timeout = httpx.Timeout(60.0, connect=15.0)
+                    async with httpx.AsyncClient(timeout=timeout) as client:
+                        response = await VisionAnalyzer._do_request(client, api_key, body)
 
-                result = VisionAnalysisResponse(
-                    success=True,
-                    observation=observation,
-                    raw=content,
-                    model=model,
-                )
-                _cache[ck] = result
-                return result
+                        if response.status_code == 429:
+                            if retry < len(RETRY_DELAYS):
+                                delay = RETRY_DELAYS[retry]
+                                print(f"[RETRY] 429 on {attempt_model}, attempt {retry+1}/{len(RETRY_DELAYS)}, waiting {delay}s")
+                                await asyncio.sleep(delay)
+                                continue
+                            print(f"[RETRY] All 429 retries exhausted for {attempt_model}")
+                            last_error = f"429 on {attempt_model}"
+                            break
 
-        except httpx.TimeoutException:
-            result = VisionAnalysisResponse(
-                success=False,
-                error="ANALYSIS_UNAVAILABLE: Request timed out after 90 seconds",
-                model=model,
-            )
-            _cache[ck] = result
-            return result
-        except Exception as e:
-            result = VisionAnalysisResponse(
-                success=False,
-                error=f"ANALYSIS_UNAVAILABLE: {str(e)}",
-                model=model,
-            )
-            _cache[ck] = result
-            return result
+                        if response.status_code == 402:
+                            last_error = f"402 on {attempt_model}"
+                            break
+
+                        if response.status_code != 200:
+                            last_error = f"{response.status_code} on {attempt_model}"
+                            print(f"[FALLBACK] {attempt_model} returned {response.status_code}, trying next model")
+                            break
+
+                        result_data = response.json()
+                        choices = result_data.get("choices", [])
+                        if not choices:
+                            last_error = f"empty choices on {attempt_model}"
+                            print(f"[FALLBACK] {attempt_model} returned no choices, trying next model")
+                            break
+
+                        content = choices[0].get("message", {}).get("content", "")
+                        if not content:
+                            last_error = f"empty content on {attempt_model}"
+                            print(f"[FALLBACK] {attempt_model} returned empty content, trying next model")
+                            break
+
+                        parsed = VisionAnalyzer._parse_json(content)
+                        if parsed is None:
+                            last_error = f"unparseable JSON on {attempt_model}"
+                            print(f"[FALLBACK] {attempt_model} returned unparseable JSON, trying next model")
+                            break
+
+                        parsed = VisionAnalyzer._fill_missing(parsed)
+
+                        try:
+                            extraction = MarketExtraction(**parsed)
+                        except Exception as e:
+                            last_error = f"validation error on {attempt_model}: {e}"
+                            print(f"[FALLBACK] {attempt_model} validation error: {e}, trying next model")
+                            break
+
+                        result = VisionAnalysisResponse(
+                            success=True,
+                            extraction=extraction,
+                            raw=content,
+                            model=attempt_model,
+                        )
+                        _cache[ck] = result
+                        return result
+
+                except httpx.TimeoutException:
+                    last_error = f"timeout on {attempt_model}"
+                    print(f"[FALLBACK] {attempt_model} timed out, trying next model")
+                    break
+                except Exception as e:
+                    last_error = str(e)
+                    print(f"[FALLBACK] {attempt_model} error: {e}, trying next model")
+                    break
+
+        friendly = "Analysis temporarily unavailable. Please retry shortly."
+        return VisionAnalysisResponse(
+            success=False,
+            error=friendly,
+            model=model,
+        )
 
     @staticmethod
     def _parse_json(content: str) -> Optional[dict]:
@@ -280,3 +210,63 @@ class VisionAnalyzer:
             return json.loads(content)
         except json.JSONDecodeError:
             return None
+
+    @staticmethod
+    def _fill_missing(parsed: dict) -> dict:
+        sections = {
+            "chartDetection": {
+                "exchange": "", "symbol": "", "timeframe": "", "currentPrice": "",
+                "sessionType": "", "chartType": "candlestick",
+                "exchangeConfidence": 0, "symbolConfidence": 0,
+                "timeframeConfidence": 0, "priceConfidence": 0,
+            },
+            "marketStructure": {
+                "higherHighs": False, "higherLows": False,
+                "lowerHighs": False, "lowerLows": False,
+                "classification": "range", "swingHighs": "", "swingLows": "",
+            },
+            "liquidity": {
+                "buySideLiquidity": "", "sellSideLiquidity": "",
+                "equalHighs": False, "equalLows": False,
+                "stopClusters": "", "liquidityPools": "",
+                "internalLiquidity": "", "externalLiquidity": "",
+                "swept": False, "sweepType": "none",
+            },
+            "smc": {
+                "bos": "", "choch": "", "mss": "",
+                "bosConfidence": 0, "chochConfidence": 0, "mssConfidence": 0,
+            },
+            "premiumDiscount": {
+                "dealingRange": "", "equilibrium": "",
+                "premiumZone": "", "discountZone": "",
+                "currentPosition": "equilibrium",
+            },
+            "volume": {
+                "spikes": "", "absorption": "", "exhaustion": "",
+                "breakoutVolume": "", "weakVolume": "", "climaxVolume": "",
+            },
+            "momentum": {
+                "impulsive": "", "corrective": "", "consolidation": "",
+                "compression": "", "score": 0,
+            },
+            "trade": {
+                "bias": "NO_TRADE", "confidence": 0,
+                "entry": "", "stop": "", "tp1": "", "tp2": "", "tp3": "",
+                "riskReward": "", "probabilityScore": "",
+                "reasoning": [],
+            },
+            "scoring": {
+                "marketStructure": 0, "liquidity": 0, "fvg": 0,
+                "orderBlocks": 0, "volume": 0, "momentum": 0, "total": 0,
+            },
+        }
+        for section, defaults in sections.items():
+            if section not in parsed or not isinstance(parsed[section], dict):
+                parsed[section] = {}
+            if section == "fvgs" and section not in parsed:
+                parsed[section] = []
+            if section == "orderBlocks" and section not in parsed:
+                parsed[section] = []
+            for k, v in defaults.items():
+                parsed[section].setdefault(k, v)
+        return parsed

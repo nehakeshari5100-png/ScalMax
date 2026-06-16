@@ -1,11 +1,8 @@
-"""FastAPI router for the Vision Analysis Engine with scoring orchestration."""
-
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 
 from services.vision.analyzer import VisionAnalyzer
-from services.vision.scoring import score_observation
 from services.vision.models import VisionAnalysisResponse
 
 router = APIRouter(tags=["vision"])
@@ -21,10 +18,6 @@ async def analyze_chart(
     model: str = Form("nex-agi/nex-n2-pro:free"),
     prompt: str = Form(""),
 ):
-    """
-    Upload a chart screenshot.
-    Flow: analyze → extract observations → score → return trade decision.
-    """
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
 
@@ -51,28 +44,14 @@ async def analyze_chart(
             detail=f"Unsupported image format: {img_format}. Supported: {', '.join(ALLOWED_FORMATS)}",
         )
 
-    # Step 1: Extract observations from AI
-    analysis_result = await VisionAnalyzer.analyze(
+    result = await VisionAnalyzer.analyze(
         api_key=api_key,
         image_data=image_data,
         model=model,
         prompt=prompt,
     )
 
-    if not analysis_result.success or analysis_result.observation is None:
-        return analysis_result
-
-    # Step 2: Score observations → trade decision
-    trade = score_observation(analysis_result.observation)
-
-    # Return combined response
-    return VisionAnalysisResponse(
-        success=True,
-        trade=trade,
-        observation=analysis_result.observation,
-        raw=analysis_result.raw,
-        model=analysis_result.model,
-    )
+    return result
 
 
 @router.get("/models")
@@ -82,7 +61,7 @@ async def list_vision_models():
             {
                 "id": "openrouter/free",
                 "name": "OpenRouter Free Router",
-                "description": "Auto-routes to best free vision model — $0 cost",
+                "description": "Auto-routes to best free vision model",
                 "default": False,
                 "free": True,
             },
@@ -94,39 +73,11 @@ async def list_vision_models():
                 "free": True,
             },
             {
-                "id": "google/gemma-4-31b-it:free",
-                "name": "Gemma 4 31B (free)",
-                "description": "Larger free vision model from Google",
-                "default": False,
-                "free": True,
-            },
-            {
-                "id": "nvidia/nemotron-nano-12b-v2-vl:free",
-                "name": "Nemotron Nano 12B VL (free)",
-                "description": "Free vision model from NVIDIA",
-                "default": False,
-                "free": True,
-            },
-            {
                 "id": "nex-agi/nex-n2-pro:free",
                 "name": "Nex AGI Nex-N2-Pro (free)",
-                "description": "Free vision MoE model - 17B active / 397B total",
+                "description": "Free vision MoE model",
                 "default": True,
                 "free": True,
-            },
-            {
-                "id": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
-                "name": "Nemotron 3 Nano Omni (free)",
-                "description": "Free multimodal reasoning model from NVIDIA",
-                "default": False,
-                "free": True,
-            },
-            {
-                "id": "google/gemma-3-12b-it",
-                "name": "Gemma 3 12B (paid)",
-                "description": "Vision model - requires credits",
-                "default": False,
-                "free": False,
             },
             {
                 "id": "openai/gpt-4o-mini",
