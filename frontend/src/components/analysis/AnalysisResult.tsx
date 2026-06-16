@@ -62,14 +62,24 @@ const ScoringBars = memo(function ScoringBars({ scoring }: { scoring: { marketSt
 });
 
 export const AnalysisResult = memo(function AnalysisResult({ extraction, validation, model }: AnalysisResultProps) {
-  const { chartDetection: cd, marketStructure: ms, liquidity: liq, smc, fvgs, orderBlocks: obs, premiumDiscount: pd, volume: vol, momentum: mom, trade, scoring } = extraction;
+  const cd = extraction?.chartDetection || {} as MarketExtraction['chartDetection'];
+  const ms = extraction?.marketStructure || {} as MarketExtraction['marketStructure'];
+  const liq = extraction?.liquidity || {} as MarketExtraction['liquidity'];
+  const smc = extraction?.smc || {} as MarketExtraction['smc'];
+  const fvgs = extraction?.fvgs || [];
+  const obs = extraction?.orderBlocks || [];
+  const pd = extraction?.premiumDiscount || {} as MarketExtraction['premiumDiscount'];
+  const vol = extraction?.volume || {} as MarketExtraction['volume'];
+  const mom = extraction?.momentum || {} as MarketExtraction['momentum'];
+  const trade = extraction?.trade || {} as MarketExtraction['trade'];
+  const scoring = extraction?.scoring || {} as MarketExtraction['scoring'];
 
-  const cfg = BIAS_CONFIG[trade.bias] || BIAS_CONFIG.NO_TRADE;
+  const cfg = BIAS_CONFIG[trade?.bias] || BIAS_CONFIG.NO_TRADE;
   const VerdictIcon = cfg.icon;
 
-  const confidenceColor = useMemo(() => trade.confidence >= 85 ? 'bg-aurora-400' : trade.confidence >= 70 ? 'bg-cyber-400' : 'bg-ember-400', [trade.confidence]);
+  const confidenceColor = useMemo(() => (trade?.confidence || 0) >= 85 ? 'bg-aurora-400' : (trade?.confidence || 0) >= 70 ? 'bg-cyber-400' : 'bg-ember-400', [trade?.confidence]);
 
-  const hasInstitutional = extraction.institutionalDecision && extraction.institutionalDecision.marketState;
+  const hasInstitutional = !!(extraction?.institutionalDecision && extraction.institutionalDecision.marketState);
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">

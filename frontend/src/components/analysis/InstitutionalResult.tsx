@@ -57,14 +57,15 @@ const STATE_LABELS: Record<string, string> = {
   REVERSAL: 'Reversal',
 };
 
-export const InstitutionalResult = memo(function InstitutionalResult({ extraction: { chartDetection: cd }, inst, model }: Props) {
-  const biasCfg = BIAS_CONFIG[inst.bias] || BIAS_CONFIG.NO_TRADE;
+export const InstitutionalResult = memo(function InstitutionalResult({ extraction, inst, model }: Props) {
+  const cd = extraction?.chartDetection || {} as MarketExtraction['chartDetection'];
+  const biasCfg = inst ? (BIAS_CONFIG[inst.bias] || BIAS_CONFIG.NO_TRADE) : BIAS_CONFIG.NO_TRADE;
   const BiasIcon = biasCfg.icon;
-  const gradeCfg = GRADE_CONFIG[inst.tradeGrade] || { color: 'text-[var(--color-text-muted)]', bg: 'bg-white/5' };
-  const tradeBiasCfg = BIAS_CONFIG[inst.tradePlan?.bias] || BIAS_CONFIG.NO_TRADE;
+  const gradeCfg = inst ? (GRADE_CONFIG[inst.tradeGrade] || { color: 'text-[var(--color-text-muted)]', bg: 'bg-white/5' }) : { color: 'text-[var(--color-text-muted)]', bg: 'bg-white/5' };
+  const tradeBiasCfg = inst?.tradePlan ? (BIAS_CONFIG[inst.tradePlan.bias] || BIAS_CONFIG.NO_TRADE) : BIAS_CONFIG.NO_TRADE;
   const TradeIcon = tradeBiasCfg.icon;
-  const StateIcon = MARKET_STATE_ICONS[inst.marketState] || Activity;
-  const grade = inst.tradeGrade || '-';
+  const StateIcon = inst?.marketState ? (MARKET_STATE_ICONS[inst.marketState] || Activity) : Activity;
+  const grade = inst?.tradeGrade || '-';
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
