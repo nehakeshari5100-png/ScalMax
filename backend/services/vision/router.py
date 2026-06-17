@@ -88,6 +88,34 @@ async def list_vision_models():
                 "description": "Budget-friendly OpenAI vision model",
                 "default": False,
                 "free": False,
+            },
+            {
+                "id": "google/gemma-3-12b-it:free",
+                "name": "Gemma 3 12B (free)",
+                "description": "Fallback: Gemma 3 12B free vision model",
+                "default": False,
+                "free": True,
+            },
+            {
+                "id": "google/gemma-3-4b-it:free",
+                "name": "Gemma 3 4B (free)",
+                "description": "Fallback: Gemma 3 4B free vision model",
+                "default": False,
+                "free": True,
+            },
+            {
+                "id": "qwen/qwen2.5-vl-7b-instruct:free",
+                "name": "Qwen 2.5 VL 7B (free)",
+                "description": "Fallback: Qwen 2.5 VL 7B free vision model",
+                "default": False,
+                "free": True,
+            },
+            {
+                "id": "openrouter/auto",
+                "name": "OpenRouter Auto",
+                "description": "Final fallback: auto-routes to best available model",
+                "default": False,
+                "free": False,
             }
         ]
     }

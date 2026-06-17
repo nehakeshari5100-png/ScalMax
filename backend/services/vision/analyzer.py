@@ -27,8 +27,15 @@ from services.vision.validation import SignalValidator
 
 OPENROUTER_BASE = "https://openrouter.ai/api/v1"
 _cache: dict[str, VisionAnalysisResponse] = {}
-FALLBACK_MODELS = ["google/gemma-4-31b-it:free", "openrouter/free"]
+FALLBACK_MODELS = [
+    "google/gemma-4-31b-it:free",
+    "google/gemma-3-12b-it:free",
+    "google/gemma-3-4b-it:free",
+    "qwen/qwen2.5-vl-7b-instruct:free",
+    "openrouter/auto",
+]
 RETRY_DELAYS = [2, 5, 10]
+MAX_RETRIES = 3
 
 
 def _optimize_image(image_data: bytes, max_width: int = 1024, quality: int = 75) -> bytes:
@@ -123,10 +130,13 @@ class VisionAnalyzer:
         print(f"[PROFILE] model={model}, max_tokens=1200, temperature=0.1, prompt_len={len(system_prompt)}", flush=True)
 
         models_to_try = [model] + [m for m in FALLBACK_MODELS if m != model]
+        models_tried = []
         last_error = None
         last_detail = None
 
         for attempt_model in models_to_try:
+            models_tried.append(attempt_model)
+            print(f"[PIPELINE] Trying model: {attempt_model} (tried so far: {models_tried})", flush=True)
             body = dict(request_body, model=attempt_model)
             ck = _cache_key(optimized, attempt_model)
             cached = _cache.get(ck)
@@ -134,7 +144,7 @@ class VisionAnalyzer:
                 print(f"[PIPELINE] Cache HIT for {attempt_model}")
                 return cached
 
-            for retry in range(len(RETRY_DELAYS) + 1):
+            for retry in range(MAX_RETRIES + 1):
                 try:
                     timeout = httpx.Timeout(20.0, connect=10.0)
                     print(f"[PROFILE] OpenRouter request: model={attempt_model}, attempt={retry+1}/20s-timeout")
@@ -151,9 +161,9 @@ class VisionAnalyzer:
                         except: pass
                         print(f"[PIPELINE] Non-200 on {attempt_model}: {response.status_code}, body={err_body}")
                         if response.status_code == 429:
-                            if retry < len(RETRY_DELAYS):
+                            if retry < MAX_RETRIES:
                                 delay = RETRY_DELAYS[retry]
-                                print(f"[PIPELINE] 429 on {attempt_model}, retry {retry+1}/{len(RETRY_DELAYS)}, waiting {delay}s")
+                                print(f"[PIPELINE] 429 on {attempt_model}, retry {retry+1}/{MAX_RETRIES}, waiting {delay}s")
                                 await asyncio.sleep(delay)
                                 continue
                             print(f"[PIPELINE] All 429 retries exhausted for {attempt_model}")
@@ -186,10 +196,13 @@ class VisionAnalyzer:
 
                     content = choices[0].get("message", {}).get("content", "")
                     if not content:
+                        reason = "content is null" if choices[0].get("message", {}).get("content") is None else "content is empty string"
                         msg_str = str(choices[0].get("message", {}))[:200]
-                        last_error = f"empty content on {attempt_model}"
-                        last_detail = {"originalError": f"message content is empty/null", "statusCode": 200, "source": "OpenRouter response parser", "model": attempt_model, "providerResponse": msg_str, "stage": "parse_content"}
-                        print(f"[PIPELINE] Empty message content: {msg_str}")
+                        last_error = f"{reason} on {attempt_model}"
+                        last_detail = {"originalError": f"OpenRouter returned {reason}", "statusCode": 200, "source": "OpenRouter response parser", "model": attempt_model, "providerResponse": msg_str, "stage": "parse_content"}
+                        next_idx = models_to_try.index(attempt_model) + 1
+                        next_model = models_to_try[next_idx] if next_idx < len(models_to_try) else "NONE"
+                        print(f"[PIPELINE] MODEL FAILED: {attempt_model} -> {reason}. Switching to: {next_model}", flush=True)
                         break
 
                     print(f"[PROFILE] Content length: {len(content)} chars")
@@ -247,6 +260,7 @@ class VisionAnalyzer:
 
                     _total_ms = (time.time() - _TOTAL) * 1000
                     print(f"[PROFILE] === BACKEND TOTAL: {_total_ms:.0f}ms ===")
+                    print(f"[PIPELINE] FINAL MODEL: {attempt_model} (models tried={models_tried})", flush=True)
                     result = VisionAnalysisResponse(
                         success=True,
                         extraction=extraction,
@@ -271,7 +285,7 @@ class VisionAnalyzer:
                     break
 
         _total_ms = (time.time() - _TOTAL) * 1000
-        print(f"[PROFILE] === BACKEND FAILED ({_total_ms:.0f}ms): {last_error}")
+        print(f"[PROFILE] === BACKEND FAILED ({_total_ms:.0f}ms): {last_error} | models_tried={models_tried}", flush=True)
         return VisionAnalysisResponse(
             success=False,
             error=last_error or "Analysis failed with no specific error",
