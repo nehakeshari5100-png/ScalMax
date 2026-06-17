@@ -44,6 +44,7 @@ async def analyze_chart(
             detail=f"Unsupported image format: {img_format}. Supported: {', '.join(ALLOWED_FORMATS)}",
         )
 
+    import sys as _sys
     result = await VisionAnalyzer.analyze(
         api_key=api_key,
         image_data=image_data,
@@ -51,6 +52,8 @@ async def analyze_chart(
         prompt=prompt,
     )
 
+    print(f"API RESPONSE SENT: success={result.success}, model={result.model}, error={result.error is not None}, extraction={result.extraction is not None}", flush=True)
+    _sys.stdout.flush()
     return result
 
 
