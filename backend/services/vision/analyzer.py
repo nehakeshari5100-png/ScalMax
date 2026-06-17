@@ -117,10 +117,10 @@ class VisionAnalyzer:
             "messages": messages,
             "temperature": 0.1,
             "top_p": 0.9,
-            "max_tokens": 600,
+            "max_tokens": 1200,
         }
 
-        print(f"[PROFILE] model={model}, max_tokens=600, temperature=0.1, prompt_len={len(system_prompt)}")
+        print(f"[PROFILE] model={model}, max_tokens=1200, temperature=0.1, prompt_len={len(system_prompt)}", flush=True)
 
         models_to_try = [model] + [m for m in FALLBACK_MODELS if m != model]
         last_error = None
@@ -201,13 +201,13 @@ class VisionAnalyzer:
                         print(f"[PIPELINE] JSON parsing FAILED. Raw content[:300]={content[:300]}")
                         break
 
-                    print(f"[PIPELINE] JSON keys: {list(parsed.keys())}")
+                    print(f"[PIPELINE] JSON keys: {list(parsed.keys())}", flush=True)
 
                     parsed = VisionAnalyzer._fill_missing(parsed)
 
                     try:
                         extraction = MarketExtraction(**parsed)
-                        print(f"[PIPELINE] MarketExtraction created: bias={extraction.trade.bias}, confidence={extraction.trade.confidence}")
+                        import sys as _sys; print(f"RESULT GENERATED: bias={extraction.trade.bias}, confidence={extraction.trade.confidence}, inst={extraction.institutionalDecision is not None}", flush=True); _sys.stdout.flush()
                     except Exception as e:
                         last_error = f"validation error on {attempt_model}: {e}"
                         last_detail = {"originalError": str(e), "statusCode": None, "source": "MarketExtraction pydantic validation", "model": attempt_model, "providerResponse": str(parsed)[:300], "stage": "pydantic_validation", "stackTrace": traceback.format_exc()}

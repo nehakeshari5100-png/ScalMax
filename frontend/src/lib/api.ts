@@ -95,6 +95,7 @@ class ApiClient {
       const t2 = performance.now();
       const result = await response.json() as import('@/types/vision').VisionAnalysisResponse;
       const t3 = performance.now();
+      console.log("API RESPONSE", JSON.stringify(result, null, 2));
       console.log(`[PROFILE] Parse: ${(t3-t2).toFixed(0)}ms`);
       if (result.success && result.extraction) {
         console.log(`[PROFILE] Total: ${(t3-t_start).toFixed(0)}ms, bias=${result.extraction.trade.bias}, confidence=${result.extraction.trade.confidence}`);
