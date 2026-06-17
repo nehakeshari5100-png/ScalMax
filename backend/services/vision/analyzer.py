@@ -137,7 +137,7 @@ class VisionAnalyzer:
             for retry in range(len(RETRY_DELAYS) + 1):
                 try:
                     timeout = httpx.Timeout(20.0, connect=10.0)
-                    print(f"[PROFILE] OpenRouter request: model={attempt_model}, attempt={retry+1}/30s-timeout")
+                    print(f"[PROFILE] OpenRouter request: model={attempt_model}, attempt={retry+1}/20s-timeout")
                     t0 = time.time()
                     async with httpx.AsyncClient(timeout=timeout) as client:
                         response = await VisionAnalyzer._do_request(client, api_key, body)

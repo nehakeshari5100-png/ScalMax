@@ -13,7 +13,7 @@ import type { MarketExtraction, ValidationReport } from '@/types/vision';
 
 const DEFAULT_MODEL = 'google/gemma-4-31b-it:free';
 const STAGES = ['Reading chart data...','Compressing image...','Extracting structure...','Analyzing liquidity...','Detecting SMC...','Scanning for FVGs...','Volume & momentum...','Validating signals...','Generating decision...','Finalizing...'];
-const SAFETY_TIMEOUT_MS = 90000;
+const SAFETY_TIMEOUT_MS = 60000;
 
 class RawJsonDisplay extends Component<{data:string;error?:string}> {
   render() {

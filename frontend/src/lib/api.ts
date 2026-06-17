@@ -1,13 +1,13 @@
 const API_BASE = 'https://scalmax-1.onrender.com';
 const RETRY_DELAYS = [2000, 5000];
-const REQUEST_TIMEOUT = 20000;
+const REQUEST_TIMEOUT = 60000;
 
 function getErrorMessage(err: unknown): string {
   if (err instanceof TypeError && err.message === 'Failed to fetch') {
     return 'Backend unreachable (failed to fetch). Is the server running?';
   }
   if (err instanceof DOMException && err.name === 'AbortError') {
-    return 'Request timed out. The backend took too long to respond.';
+    return 'Backend server is starting up or overloaded. Please wait 30s and try again.';
   }
   return err instanceof Error ? err.message : String(err);
 }
@@ -15,7 +15,6 @@ function getErrorMessage(err: unknown): string {
 function isTransientError(err: unknown): boolean {
   const lower = (err instanceof Error ? err.message : String(err)).toLowerCase();
   return lower.includes('429') || lower.includes('too many requests') || lower.includes('rate limit')
-    || lower.includes('timeout') || lower.includes('abort')
     || lower.includes('failed to fetch') || lower.includes('network') || lower.includes('econnrefused')
     || lower.includes('502') || lower.includes('503') || lower.includes('service unavailable');
 }
