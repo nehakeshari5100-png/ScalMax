@@ -16,7 +16,6 @@ import { InstitutionalResult } from '@/components/analysis/InstitutionalResult';
 interface AnalysisResultProps {
   extraction: MarketExtraction;
   validation: ValidationReport | null;
-  model: string;
 }
 
 const BIAS_CONFIG: Record<string, { icon: any; color: string; bg: string; border: string; label: string }> = {
@@ -61,7 +60,7 @@ const ScoringBars = memo(function ScoringBars({ scoring }: { scoring: { marketSt
   );
 });
 
-export const AnalysisResult = memo(function AnalysisResult({ extraction, validation, model }: AnalysisResultProps) {
+export const AnalysisResult = memo(function AnalysisResult({ extraction, validation }: AnalysisResultProps) {
   const cd = extraction?.chartDetection || {} as MarketExtraction['chartDetection'];
   const ms = extraction?.marketStructure || {} as MarketExtraction['marketStructure'];
   const liq = extraction?.liquidity || {} as MarketExtraction['liquidity'];
@@ -84,16 +83,13 @@ export const AnalysisResult = memo(function AnalysisResult({ extraction, validat
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
       {hasInstitutional ? (
-        <InstitutionalResult extraction={extraction} inst={extraction.institutionalDecision!} model={model} />
+        <InstitutionalResult extraction={extraction} inst={extraction.institutionalDecision!} />
       ) : (
         <>
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Layers className="w-5 h-5 text-cyber-400" />
-          <h2 className="text-base font-bold">12-Step Extraction</h2>
-          <span className="text-[10px] text-[var(--color-text-muted)] font-mono">{model.split('/').pop()}</span>
-        </div>
+      <div className="flex items-center gap-2">
+        <Layers className="w-5 h-5 text-cyber-400" />
+        <h2 className="text-base font-bold">12-Step Extraction</h2>
       </div>
 
       {/* Trade Verdict */}

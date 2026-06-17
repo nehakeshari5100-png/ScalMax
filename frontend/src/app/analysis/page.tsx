@@ -8,12 +8,11 @@ import type { UploadSource } from '@/components/analysis/ChartUploader';
 import { AnalysisResult } from '@/components/analysis/AnalysisResult';
 import { useOpenRouter } from '@/lib/openrouter-context';
 import { api } from '@/lib/api';
-import { Brain, Key, Loader2, AlertTriangle, Layers, Clock } from 'lucide-react';
+import { Brain, Key, Loader2, Layers, Clock, XCircle } from 'lucide-react';
 import type { MarketExtraction, ValidationReport } from '@/types/vision';
 
-const DEFAULT_MODEL = 'google/gemma-4-31b-it:free';
 const STAGES = ['Reading chart data...','Compressing image...','Extracting structure...','Analyzing liquidity...','Detecting SMC...','Scanning for FVGs...','Volume & momentum...','Validating signals...','Generating decision...','Finalizing...'];
-const SAFETY_TIMEOUT_MS = 60000;
+const SAFETY_TIMEOUT_MS = 20000;
 
 class RawJsonDisplay extends Component<{data:string;error?:string}> {
   render() {
@@ -84,13 +83,13 @@ export default function AnalysisPage() {
   const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const safetyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Safety net: force clear analyzing if stuck for 90s
+  // Safety net: force clear analyzing if stuck
   useEffect(() => {
     if (analyzing) {
       safetyTimerRef.current = setTimeout(() => {
-        console.log('[SAFETY] analyzing stuck 90s, force clearing');
+        console.log('[SAFETY] timeout', SAFETY_TIMEOUT_MS + 'ms, force clearing');
         setAnalyzing(false);
-        setError('Analysis stuck for 90s. Backend may be unresponsive.');
+        setError('Analysis temporarily unavailable. Please retry.');
       }, SAFETY_TIMEOUT_MS);
     }
     return () => { if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current); };
@@ -113,8 +112,7 @@ export default function AnalysisPage() {
     let responseData: any = null;
 
     try {
-      console.log('ANALYSIS START');
-      if (!file || !apiKey) { console.log('[PROFILE] Abort: no file or apiKey'); return; }
+      if (!file || !apiKey) { console.log('Abort: no file or apiKey'); return; }
       if (resolution && (resolution.width < 100 || resolution.height < 100)) {
         setError('Image resolution too low for reliable analysis (minimum 100x100).');
         return;
@@ -126,53 +124,36 @@ export default function AnalysisPage() {
       setRawResponse(null);
       setShowRawJson(false);
       setElapsed(0);
-      console.log('LOADING: setAnalyzing(true)');
 
       elapsedRef.current = setInterval(() => setElapsed((performance.now() - t0) / 1000), 500);
 
-      console.log('RESULT CREATED: calling api.analyzeChart');
-      responseData = await api.analyzeChart(file, apiKey, DEFAULT_MODEL, '');
-      console.log('API RESPONSE SENT: backend returned', JSON.stringify({
-        success: responseData.success,
-        hasExtraction: !!responseData.extraction,
-        model: responseData.model,
-        error: responseData.error,
-      }, null, 2));
-
-      console.log('RESULT RECEIVED: processing response');
+      responseData = await api.analyzeChart(file, apiKey, '', '');
+      const rt = ((performance.now() - t0) / 1000).toFixed(1);
 
       if (responseData.success && responseData.extraction) {
-        const rawJson = JSON.stringify(responseData, null, 2);
-        setRawResponse(rawJson);
+        console.log('model_used:', responseData.model);
+        console.log('response_time:', rt + 's');
+        setRawResponse(JSON.stringify(responseData, null, 2));
         setShowRawJson(true);
-        console.log('STATE UPDATED: setting extraction + raw JSON');
         setExtraction(responseData.extraction);
         setValidation(responseData.validation ?? null);
         setUsedModel(responseData.model);
       } else {
-        const errMsg = responseData.error || 'Analysis failed';
-        const detailStr = responseData.detail
-          ? ` [source=${responseData.detail.stage || 'unknown'}, model=${responseData.detail.model || '?'}, originalError=${responseData.detail.originalError || '?'}]`
-          : '';
-        console.log('STATE UPDATED: setting error', errMsg + detailStr);
-        setError(errMsg + detailStr);
+        console.log('model_used: (failed) model=' + responseData.model, 'error:', responseData.error, 'detail:', responseData.detail);
+        console.log('response_time:', rt + 's');
         setRawResponse(JSON.stringify(responseData, null, 2));
         setShowRawJson(true);
+        setError('Analysis temporarily unavailable. Please retry.');
       }
     } catch (e) {
       const elapsedMs = performance.now() - t0;
-      const msg = e instanceof Error ? e.message : String(e);
-      console.log('ERROR CAUGHT after ' + elapsedMs.toFixed(0) + 'ms:', msg);
-      if (elapsedMs >= 20000 && !msg.toLowerCase().includes('timeout') && !msg.toLowerCase().includes('abort')) {
-        setError('The analysis took too long (over 20s). Try a smaller chart image or try again.');
-      } else {
-        setError(msg);
-      }
+      console.log('model_used: (error)');
+      console.log('response_time:', (elapsedMs / 1000).toFixed(1) + 's');
+      console.error('Error:', e instanceof Error ? e.message : String(e));
+      setError('Analysis temporarily unavailable. Please retry.');
     } finally {
-      console.log('LOADING CLEARED: setAnalyzing(false)');
       setAnalyzing(false);
       if (elapsedRef.current) { clearInterval(elapsedRef.current); elapsedRef.current = null; }
-      console.log('[PROFILE] analyzing=false');
     }
   }, [file, apiKey, resolution]);
 
@@ -256,9 +237,9 @@ export default function AnalysisPage() {
           </Button>
 
           {finalError && (
-            <div className="px-4 py-3 rounded-lg bg-ember-500/10 border border-ember-500/20 text-xs text-ember-400">
+            <div className="px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/15 text-xs text-amber-400">
               <div className="flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <XCircle className="w-4 h-4 shrink-0" />
                 {finalError}
               </div>
             </div>
@@ -288,7 +269,7 @@ export default function AnalysisPage() {
             <div className="space-y-4">
               {extraction ? (
                 <ResultErrorBoundary onError={onRenderError} rawFallback={rawResponse}>
-                  <AnalysisResult extraction={extraction} validation={validation} model={usedModel} />
+                  <AnalysisResult extraction={extraction} validation={validation} />
                 </ResultErrorBoundary>
               ) : (
                 <RawJsonDisplay data={rawResponse} error={error || undefined} />

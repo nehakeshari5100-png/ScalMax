@@ -13,7 +13,6 @@ import type { MarketExtraction, InstitutionalDecision } from '@/types/vision';
 interface Props {
   extraction: MarketExtraction;
   inst: InstitutionalDecision;
-  model: string;
 }
 
 const MARKET_STATE_ICONS: Record<string, any> = {
@@ -57,7 +56,7 @@ const STATE_LABELS: Record<string, string> = {
   REVERSAL: 'Reversal',
 };
 
-export const InstitutionalResult = memo(function InstitutionalResult({ extraction, inst, model }: Props) {
+export const InstitutionalResult = memo(function InstitutionalResult({ extraction, inst }: Props) {
   const cd = extraction?.chartDetection || {} as MarketExtraction['chartDetection'];
   const biasCfg = inst ? (BIAS_CONFIG[inst.bias] || BIAS_CONFIG.NO_TRADE) : BIAS_CONFIG.NO_TRADE;
   const BiasIcon = biasCfg.icon;
@@ -70,12 +69,9 @@ export const InstitutionalResult = memo(function InstitutionalResult({ extractio
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Activity className="w-5 h-5 text-cyber-400" />
-          <h2 className="text-base font-bold">Institutional Trade Decision</h2>
-          <span className="text-[10px] text-[var(--color-text-muted)] font-mono">{model.split('/').pop()}</span>
-        </div>
+      <div className="flex items-center gap-2">
+        <Activity className="w-5 h-5 text-cyber-400" />
+        <h2 className="text-base font-bold">Institutional Trade Decision</h2>
       </div>
 
       {/* Verdict */}

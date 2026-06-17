@@ -15,7 +15,7 @@ MAX_FILE_SIZE = 10 * 1024 * 1024
 async def analyze_chart(
     file: UploadFile = File(...),
     api_key: str = Form(...),
-    model: str = Form("google/gemma-4-31b-it:free"),
+    model: str = Form("qwen/qwen2.5-vl-7b-instruct"),
     prompt: str = Form(""),
 ):
     if not file.filename:
@@ -76,47 +76,33 @@ async def list_vision_models():
                 "free": True,
             },
             {
-                "id": "google/gemma-4-31b-it:free",
-                "name": "Nex AGI Nex-N2-Pro (free)",
-                "description": "Free vision MoE model",
+                "id": "qwen/qwen2.5-vl-7b-instruct",
+                "name": "Qwen 2.5 VL 7B (primary)",
+                "description": "Primary vision model",
                 "default": True,
                 "free": True,
             },
             {
-                "id": "openai/gpt-4o-mini",
-                "name": "GPT-4o Mini (paid)",
-                "description": "Budget-friendly OpenAI vision model",
-                "default": False,
-                "free": False,
-            },
-            {
-                "id": "google/gemma-3-12b-it:free",
-                "name": "Gemma 3 12B (free)",
-                "description": "Fallback: Gemma 3 12B free vision model",
-                "default": False,
-                "free": True,
-            },
-            {
-                "id": "google/gemma-3-4b-it:free",
-                "name": "Gemma 3 4B (free)",
-                "description": "Fallback: Gemma 3 4B free vision model",
-                "default": False,
-                "free": True,
-            },
-            {
-                "id": "qwen/qwen2.5-vl-7b-instruct:free",
-                "name": "Qwen 2.5 VL 7B (free)",
-                "description": "Fallback: Qwen 2.5 VL 7B free vision model",
-                "default": False,
-                "free": True,
-            },
-            {
                 "id": "openrouter/auto",
-                "name": "OpenRouter Auto",
-                "description": "Final fallback: auto-routes to best available model",
+                "name": "OpenRouter Auto (fallback)",
+                "description": "Auto-routes to best available model",
                 "default": False,
                 "free": False,
-            }
+            },
+            {
+                "id": "meta-llama/llama-3.2-11b-vision-instruct",
+                "name": "Llama 3.2 11B Vision (fallback)",
+                "description": "Meta's vision model",
+                "default": False,
+                "free": True,
+            },
+            {
+                "id": "google/gemma-3-12b-it",
+                "name": "Gemma 3 12B (fallback)",
+                "description": "Google's free vision model",
+                "default": False,
+                "free": True,
+            },
         ]
     }
 

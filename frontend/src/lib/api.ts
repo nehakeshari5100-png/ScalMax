@@ -1,6 +1,6 @@
 const API_BASE = 'https://scalmax-1.onrender.com';
-const RETRY_DELAYS = [2000, 5000];
-const REQUEST_TIMEOUT = 60000;
+const RETRY_DELAYS: number[] = [];
+const REQUEST_TIMEOUT = 20000;
 
 function getErrorMessage(err: unknown): string {
   if (err instanceof TypeError && err.message === 'Failed to fetch') {

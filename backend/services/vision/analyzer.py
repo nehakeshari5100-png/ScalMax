@@ -28,13 +28,11 @@ from services.vision.validation import SignalValidator
 OPENROUTER_BASE = "https://openrouter.ai/api/v1"
 _cache: dict[str, VisionAnalysisResponse] = {}
 FALLBACK_MODELS = [
-    "google/gemma-4-31b-it:free",
-    "google/gemma-3-12b-it:free",
-    "google/gemma-3-4b-it:free",
-    "qwen/qwen2.5-vl-7b-instruct:free",
     "openrouter/auto",
+    "meta-llama/llama-3.2-11b-vision-instruct",
+    "google/gemma-3-12b-it",
 ]
-RETRY_DELAYS = [2, 5, 10]
+RETRY_DELAYS = [2]
 MAX_RETRIES = 3
 
 
@@ -113,7 +111,7 @@ class VisionAnalyzer:
             {
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": "Analyze this chart using the 10-step institutional trade decision engine. Return only the JSON."},
+                    {"type": "text", "text": "Analyze this chart. Return ONLY valid JSON. No markdown. No chain of thought."},
                     {"type": "image_url", "image_url": {"url": image_url}},
                 ],
             },
@@ -124,10 +122,10 @@ class VisionAnalyzer:
             "messages": messages,
             "temperature": 0.1,
             "top_p": 0.9,
-            "max_tokens": 1200,
+            "max_tokens": 600,
         }
 
-        print(f"[PROFILE] model={model}, max_tokens=1200, temperature=0.1, prompt_len={len(system_prompt)}", flush=True)
+        print(f"[PROFILE] model={model}, max_tokens=600, temperature=0.1, prompt_len={len(system_prompt)}", flush=True)
 
         models_to_try = [model] + [m for m in FALLBACK_MODELS if m != model]
         models_tried = []
@@ -146,8 +144,8 @@ class VisionAnalyzer:
 
             for retry in range(MAX_RETRIES + 1):
                 try:
-                    timeout = httpx.Timeout(20.0, connect=10.0)
-                    print(f"[PROFILE] OpenRouter request: model={attempt_model}, attempt={retry+1}/20s-timeout")
+                    timeout = httpx.Timeout(8.0, connect=5.0)
+                    print(f"[PROFILE] OpenRouter request: model={attempt_model}, attempt={retry+1}/8s-timeout")
                     t0 = time.time()
                     async with httpx.AsyncClient(timeout=timeout) as client:
                         response = await VisionAnalyzer._do_request(client, api_key, body)
@@ -161,9 +159,9 @@ class VisionAnalyzer:
                         except: pass
                         print(f"[PIPELINE] Non-200 on {attempt_model}: {response.status_code}, body={err_body}")
                         if response.status_code == 429:
-                            if retry < MAX_RETRIES:
+                            if retry < len(RETRY_DELAYS):
                                 delay = RETRY_DELAYS[retry]
-                                print(f"[PIPELINE] 429 on {attempt_model}, retry {retry+1}/{MAX_RETRIES}, waiting {delay}s")
+                                print(f"[PIPELINE] 429 on {attempt_model}, retry {retry+1}/{len(RETRY_DELAYS)}, waiting {delay}s")
                                 await asyncio.sleep(delay)
                                 continue
                             print(f"[PIPELINE] All 429 retries exhausted for {attempt_model}")
@@ -274,8 +272,8 @@ class VisionAnalyzer:
 
                 except httpx.TimeoutException:
                     last_error = f"timeout on {attempt_model}"
-                    last_detail = {"originalError": f"httpx.TimeoutException after 30s", "statusCode": None, "source": "httpx request", "model": attempt_model, "providerResponse": "", "stage": "openrouter_request_timeout"}
-                    print(f"[PIPELINE] TIMEOUT on {attempt_model} (30s), trying next model")
+                    last_detail = {"originalError": f"httpx.TimeoutException after 8s", "statusCode": None, "source": "httpx request", "model": attempt_model, "providerResponse": "", "stage": "openrouter_request_timeout"}
+                    print(f"[PIPELINE] TIMEOUT on {attempt_model} (8s), trying next model")
                     break
                 except Exception as e:
                     last_error = str(e)
@@ -288,7 +286,7 @@ class VisionAnalyzer:
         print(f"[PROFILE] === BACKEND FAILED ({_total_ms:.0f}ms): {last_error} | models_tried={models_tried}", flush=True)
         return VisionAnalysisResponse(
             success=False,
-            error=last_error or "Analysis failed with no specific error",
+            error="Analysis temporarily unavailable. Please retry.",
             detail=last_detail,
             model=model,
         )

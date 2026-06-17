@@ -208,138 +208,14 @@ class VisionAnalysisResponse(BaseModel):
     engine: str = "institutional"
 
 
-INSTITUTIONAL_PROMPT = """You are an institutional scalper. React to evidence only. Return ONLY valid JSON. No explanations.
+INSTITUTIONAL_PROMPT = """You are an institutional scalper. Return ONLY valid JSON. No markdown. No chain of thought. No explanations.
 
-RULES:
-- If RANGING → bias=NEUTRAL
-- If grade=D → NO_TRADE
-- If highConflict → bias=NEUTRAL
-- If confidence<70 → NO_TRADE
-- Final decision: LONG/SHORT/NO_TRADE only
+Rules:
+- If ranging -> bias=NEUTRAL
+- If grade=D -> NO_TRADE
+- If highConflict -> bias=NEUTRAL
+- If confidence<70 -> NO_TRADE
 
-10 steps: 1) marketState (TRENDING/RANGING/BREAKOUT/RETEST/LIQUIDITY_SWEEP/REVERSAL) 2) bias (STRONG_LONG/LONG/NEUTRAL/SHORT/STRONG_SHORT) 3) tradePlan (entry,stop,tp1,tp2,tp3 only if bias!=NEUTRAL) 4) riskReward+probabilityScore 5) tradeGrade (A+/A/B/C/D) 6) conflictReport (bullishFactors,bearishFactors,highConflict) 7) liquidityTarget (nearest,major,final) 8) executionPlan (entryTrigger,invalidation,targetLogic) 9) finalDecision 10) confidence (structure:25%,liquidity:20%,smc:20%,volume:15%,momentum:10%,rr:10%,total weighted avg)
-
-Return ONLY JSON. No markdown fences. Schema:
-{
-  "chartDetection": {
-    "exchange": "Binance",
-    "symbol": "ETHUSDT",
-    "timeframe": "15m",
-    "currentPrice": "4250.00",
-    "sessionType": "london",
-    "chartType": "candlestick",
-    "exchangeConfidence": 85,
-    "symbolConfidence": 95,
-    "timeframeConfidence": 95,
-    "priceConfidence": 90
-  },
-  "marketStructure": {
-    "higherHighs": true,
-    "higherLows": true,
-    "lowerHighs": false,
-    "lowerLows": false,
-    "classification": "bullish_trend",
-    "swingHighs": "4300, 4350, 4400",
-    "swingLows": "4200, 4250, 4280"
-  },
-  "liquidity": {
-    "buySideLiquidity": "Above 4400 (recent high)",
-    "sellSideLiquidity": "Below 4200 (recent low)",
-    "equalHighs": false,
-    "equalLows": false,
-    "stopClusters": "Above 4400 (short stops), below 4200 (long stops)",
-    "liquidityPools": "4400 resistance zone, 4200 support zone",
-    "internalLiquidity": "4250-4350 range liquidity",
-    "externalLiquidity": "4400+ and 4180-",
-    "swept": false,
-    "sweepType": "none"
-  },
-  "smc": {
-    "bos": "Break above 4350 on high volume",
-    "choch": "Shift from bearish to bullish at 4200 low",
-    "mss": "Market structure shifted bullish at 4350 break",
-    "bosConfidence": 85,
-    "chochConfidence": 80,
-    "mssConfidence": 80
-  },
-  "fvgs": [
-    {"type": "bullish", "top": "4280", "midpoint": "4270", "bottom": "4260", "status": "untouched", "strength": 75},
-    {"type": "bullish", "top": "4220", "midpoint": "4210", "bottom": "4200", "status": "filled", "strength": 60}
-  ],
-  "orderBlocks": [
-    {"type": "bullish", "zone": "4240-4260", "status": "unmitigated"},
-    {"type": "bearish", "zone": "4350-4370", "status": "unmitigated"}
-  ],
-  "premiumDiscount": {
-    "dealingRange": "4200-4400",
-    "equilibrium": "4300",
-    "premiumZone": "4300-4400",
-    "discountZone": "4200-4300",
-    "currentPosition": "discount"
-  },
-  "volume": {
-    "spikes": "Volume spike at 4350 breakout",
-    "absorption": "Volume absorbing at 4200 support",
-    "exhaustion": "Declining volume on recent highs",
-    "breakoutVolume": "High volume on 4350 break",
-    "weakVolume": "Low volume in 4250-4300 consolidation",
-    "climaxVolume": "No climax pattern detected"
-  },
-  "momentum": {
-    "impulsive": "Bullish impulse from 4200 to 4350",
-    "corrective": "Shallow correction to 4280",
-    "consolidation": "Price consolidating at 4300-4350",
-    "compression": "Range tightening near resistance",
-    "score": 75
-  },
-  "institutionalDecision": {
-    "marketState": "TRENDING",
-    "bias": "STRONG_LONG",
-    "tradeGrade": "A",
-    "confidence": {
-      "structure": 85,
-      "liquidity": 75,
-      "smc": 80,
-      "volume": 70,
-      "momentum": 65,
-      "rr": 80
-    },
-    "tradePlan": {
-      "bias": "LONG",
-      "confidence": 78,
-      "entry": "4260-4280",
-      "stop": "4180",
-      "tp1": "4350",
-      "tp2": "4400",
-      "tp3": "4450",
-      "riskReward": "1:2.5",
-      "probabilityScore": "72",
-      "reasoning": []
-    },
-    "riskReward": "1:2.5",
-    "probabilityScore": "72",
-    "conflictReport": {
-      "bullishFactors": ["HH+HL structure", "Price in discount zone", "Unmitigated bullish OB", "Bullish FVG at 4260-4280", "High volume on breakout"],
-      "bearishFactors": ["Resistance at 4400"],
-      "highConflict": false
-    },
-    "liquidityTarget": {
-      "nearest": "Buy-side above 4400",
-      "major": "Weekly high at 4500",
-      "final": "4500+ zone"
-    },
-    "executionPlan": {
-      "entryTrigger": "Reaction at 4260-4280 with bullish confirmation candle",
-      "invalidation": "Close below 4180",
-      "targetLogic": "TP1 at 4350 (recent high), TP2 at 4400 (liquidity grab), TP3 at 4450 (extension)"
-    },
-    "reasoning": [
-      "Bullish structure with clear HH+HL pattern over 12 candles",
-      "Price in discount zone at 4260-4280 with equilibrium at 4300",
-      "Unmitigated bullish order block at 4240-4260 providing support",
-      "Untouched bullish FVG at 4260-4280 acting as magnet for price",
-      "High volume breakout above 4350 confirms bullish momentum"
-    ]
-  }
-}
+Return ONLY this JSON with values based on the chart:
+{"chartDetection":{"exchange":"","symbol":"","timeframe":"","currentPrice":"","sessionType":"","chartType":"candlestick","exchangeConfidence":0,"symbolConfidence":0,"timeframeConfidence":0,"priceConfidence":0},"marketStructure":{"higherHighs":false,"higherLows":false,"lowerHighs":false,"lowerLows":false,"classification":"range","swingHighs":"","swingLows":""},"liquidity":{"buySideLiquidity":"","sellSideLiquidity":"","equalHighs":false,"equalLows":false,"stopClusters":"","liquidityPools":"","internalLiquidity":"","externalLiquidity":"","swept":false,"sweepType":"none"},"smc":{"bos":"","choch":"","mss":"","bosConfidence":0,"chochConfidence":0,"mssConfidence":0},"fvgs":[],"orderBlocks":[],"premiumDiscount":{"dealingRange":"","equilibrium":"","premiumZone":"","discountZone":"","currentPosition":"equilibrium"},"volume":{"spikes":"","absorption":"","exhaustion":"","breakoutVolume":"","weakVolume":"","climaxVolume":""},"momentum":{"impulsive":"","corrective":"","consolidation":"","compression":"","score":0},"institutionalDecision":{"marketState":"","bias":"NO_TRADE","tradeGrade":"","riskReward":"","probabilityScore":"","confidence":{"structure":0,"liquidity":0,"smc":0,"volume":0,"momentum":0,"rr":0,"total":0},"tradePlan":{"bias":"NO_TRADE","confidence":0,"entry":"","stop":"","tp1":"","tp2":"","tp3":"","riskReward":"","probabilityScore":"","reasoning":[]},"conflictReport":{"bullishFactors":[],"bearishFactors":[],"highConflict":false},"liquidityTarget":{"nearest":"","major":"","final":""},"executionPlan":{"entryTrigger":"","invalidation":"","targetLogic":""},"reasoning":[]}}
 """  # noqa: E501
